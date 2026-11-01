@@ -229,7 +229,13 @@ function renderDocument(d) {
   const metaRow = (k, v) => meta.append(el('div', {}, [el('dt', { textContent: k }), el('dd', { textContent: v })]));
   metaRow('Prepared from', 'Your four positions and your own description of the work');
   metaRow('Document status', 'A sketch. Nothing here has been checked against your filings.');
-  metaRow('Scope', d.staffing_map?.stage ? `An organization at the ${d.staffing_map.stage.toLowerCase()} stage` : 'As described in the brief');
+  /* `stage` is meant to be a short label. If the model writes a sentence
+     instead, print it as it stands rather than wrapping it in a phrase that
+     turns it into nonsense. */
+  const stage = (d.staffing_map?.stage || '').trim();
+  metaRow('Scope', !stage ? 'As described in the brief'
+    : stage.length <= 28 ? `An organization at the ${stage.toLowerCase()} stage`
+    : stage);
   metaRow('Evidence status', 'Self-reported. No outside research was performed.');
   doc.append(meta);
 

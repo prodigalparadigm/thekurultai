@@ -1,0 +1,17 @@
+.DS_Store
+api/node_modules/
+api/lambda/node_modules/
+api/function.zip
+api/.endpoint
+# built at deploy time from api/canon/sliders.json - never edited directly
+api/lambda/sliders.json
+
+# Editorial working notes for the sample editions: verification records, raw
+# pulls, screenshots, the Allen Wall. These stay on the Mac. The samples that
+# ship are published pages, not these. The QA harness reads this directory
+# locally and simply finds nothing in a fresh clone.
+api/samples/
+
+# The client papers live in their own place now. Full history before the
+# site went public: ~/claude_system/kurultai_archive_2026-11-01/
+rainbow/

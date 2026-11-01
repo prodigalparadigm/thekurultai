@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Kurultai - A council for what comes next</title>
+<meta name="description" content="Bring your processes and your staffing reality; leave with a working AI strategy. A ceremony audit, a decision ledger, the people arc and a staffing map. Free sketch, no account. The AI strategy tool that won't write your layoff plan.">
+<link rel="canonical" href="https://thekurultai.com/">
+<meta property="og:title" content="The Kurultai">
+<meta property="og:description" content="AI strategy. Not a job title. A free strategy sketch from four considered positions and a short brief.">
+<meta property="og:url" content="https://thekurultai.com/">
+<meta property="og:type" content="website">
+<link rel="icon" href="assets/mark.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+<a class="brand" href="index.html" aria-label="The Kurultai home"><img src="assets/mark.svg" width="38" height="38" alt=""><span>The Kurultai</span></a>
+<nav aria-label="Main"><a href="#instrument">The instrument</a><a href="report.html">The report</a><a href="#pricing">Pricing</a><a href="patron.html">Why Kurultai</a></nav>
+</header>
+<main id="main">
+<section class="hero wrap" aria-labelledby="hero-title">
+<div class="hero-band" data-ui>
+<div class="hero-premise"><span class="assembly-symbol" aria-hidden="true"><i></i><i></i><i></i><i></i><b></b></span><p>A council for<br>what comes next.</p><a href="patron.html">Why the name matters</a></div>
+<div class="hero-paper">
+<div class="paper-meta"><span>The Kurultai</span><span>Strategy specimen</span></div>
+<p class="paper-title">The decision<br>comes first.</p>
+<div class="paper-columns"><div><strong>Recommendation</strong><p>Begin with the work that is repeatable. Keep judgment with the people accountable for it.</p></div><div><strong>Before committing</strong><p>Name an owner. Establish the baseline. Decide what would make you stop.</p></div></div>
+<a href="report.html" class="paper-link">Open the sample report <span aria-hidden="true">↗</span></a>
+</div>
+</div>
+<div class="hero-bottom">
+<div class="hero-note"><p>The AI strategy tool that won't write your layoff plan.</p><p>By Prodigal Paradigm</p></div>
+<div><h1 id="hero-title">AI strategy.<br>Not a job title.</h1><p class="standfirst">Four considered positions and a short brief. A strategy your board can interrogate.</p><a class="button" href="#instrument">Try the instrument <span aria-hidden="true">↗</span></a><span class="action-note">QUICK is free.</span></div>
+</div>
+</section>
+<section class="instrument-section" id="instrument" aria-labelledby="instrument-title">
+<div class="wrap">
+<div class="section-intro"><div><h2 id="instrument-title">Where do you stand?</h2><p>No maturity score. No right answer. Put each marker where your organization actually is.</p></div><p class="aside">These are positions, not predictions. The sentences are the scale. The number is only a location.</p></div>
+<form id="strategy-form" novalidate>
+<div class="instruments">
+<fieldset data-ui class="dial" data-key="staffing"><legend>Staffing</legend><div class="dial-body">
+<div class="track-wrap"><span class="ticks" aria-hidden="true"></span><input id="staffing" name="staffing" type="range" min="0" max="100" value="50" step="1" aria-label="Staffing position" aria-orientation="vertical" aria-describedby="staffing-top staffing-bottom range-help"><span class="thumb-readout" aria-hidden="true">50</span></div>
+<div class="voices"><p id="staffing-top" class="voice">“People buy my craft - firing everyone is counterproductive”</p><p class="position" id="staffing-state">Center position</p><p id="staffing-bottom" class="voice">“I don't need the donuts &amp; the chit chat - agenticize it all”</p></div>
+</div></fieldset>
+<fieldset data-ui class="dial" data-key="governance"><legend>Data governance</legend><div class="dial-body">
+<div class="track-wrap"><span class="ticks" aria-hidden="true"></span><input id="governance" name="governance" type="range" min="0" max="100" value="50" step="1" aria-label="Data governance position" aria-orientation="vertical" aria-describedby="governance-top governance-bottom range-help"><span class="thumb-readout" aria-hidden="true">50</span></div>
+<div class="voices"><p id="governance-top" class="voice">“Lock that stuff down - in-house LLMs only”</p><p class="position" id="governance-state">Center position</p><p id="governance-bottom" class="voice">“It's already in the cloud - let's just move fast, faster than the competition”</p></div>
+</div></fieldset>
+<fieldset data-ui class="dial" data-key="risk"><legend>Risk tolerance</legend><div class="dial-body">
+<div class="track-wrap"><span class="ticks" aria-hidden="true"></span><input id="risk" name="risk" type="range" min="0" max="100" value="50" step="1" aria-label="Risk tolerance position" aria-orientation="vertical" aria-describedby="risk-top risk-bottom range-help"><span class="thumb-readout" aria-hidden="true">50</span></div>
+<div class="voices"><p id="risk-top" class="voice">“We're publicly traded - people read the docs”</p><p class="position" id="risk-state">Center position</p><p id="risk-bottom" class="voice">“We're public but who cares - let's be pioneers and mavericks”</p></div>
+</div></fieldset>
+<fieldset data-ui class="dial" data-key="investment"><legend>Upfront investment</legend><div class="dial-body">
+<div class="track-wrap"><span class="ticks" aria-hidden="true"></span><input id="investment" name="investment" type="range" min="0" max="100" value="50" step="1" aria-label="Upfront investment position" aria-orientation="vertical" aria-describedby="investment-top investment-bottom range-help"><span class="thumb-readout" aria-hidden="true">50</span></div>
+<div class="voices"><p id="investment-top" class="voice">“This is the wave of the now - all the $$ goes to this”</p><p class="position" id="investment-state">Center position</p><p id="investment-bottom" class="voice">“Man, keep it cheap”</p></div>
+</div></fieldset>
+</div>
+<div class="instrument-help"><p id="range-help">Use a pointer or the arrow keys. Up moves toward the top sentence. Home selects the bottom; End selects the top.</p><button class="text-button" type="button" id="reset-ranges">Reset positions</button></div>
+<div class="brief-grid">
+<div><h3>A little context.</h3><p>The positions need somewhere to land. The processes are the important part, and plain is better than tidy: they are what the ceremony audit works on.</p><p class="quiet-commitment"><strong>No layoff plans.</strong> The Kurultai does not produce headcount-reduction recommendations, ever. Moving the staffing slider never removes that commitment.</p></div>
+<div class="brief-fields">
+<label for="organization">Organization <span>(required)</span></label><input id="organization" name="organization" autocomplete="organization" maxlength="100" placeholder="Acme Freight" required>
+<label for="sector">Organization type <span>(required)</span></label><select id="sector" name="sector" required><option value="">Choose a type</option><option>Company</option><option>Nonprofit</option><option>Government or public body</option><option>Other organization</option></select>
+<label for="industry">Industry</label><input id="industry" name="industry" autocomplete="off" maxlength="100" placeholder="Regional logistics">
+<label for="size">Roughly how many people</label><input id="size" name="size" autocomplete="off" maxlength="60" placeholder="About 400">
+<label for="regulated">Sector regulation you answer to</label><select id="regulated" name="regulated"><option value="">No, or nothing unusual</option><option value="yes">Yes, we are regulated</option></select>
+<label for="processes">Your top processes, in your own words <span>(required)</span></label><textarea id="processes" name="processes" rows="4" maxlength="4000" placeholder="Monthly close. Quarterly business reviews. Dispatch scheduling every morning. The RFP responses, which take two people a week each time." required></textarea>
+<label for="current_ai">Where you are with AI today</label><textarea id="current_ai" name="current_ai" rows="3" maxlength="4000" placeholder="Two licences in marketing. A pilot nobody finished. IT has opinions."></textarea>
+<label for="staffing_text">Your staffing reality, in plain words</label><textarea id="staffing_text" name="staffing_text" rows="3" maxlength="4000" placeholder="Four analysts, one of whom builds things nobody asked for. Ops lead has been here 19 years and knows why every exception exists."></textarea>
+<label for="priority">The one outcome you want controlled in the next 90 days <span>(required)</span></label><textarea id="priority" name="priority" rows="3" maxlength="800" placeholder="Stop losing two days a month to the close." required></textarea>
+<p class="privacy-line"><strong>What travels where.</strong> What you type is sent to Anthropic's API to be read, and comes back as your document. Nothing is stored on our side but a count, so the day's limit can be enforced, and the finished document, which deletes itself within two hours. No account, no tracking, no record you did not take with you.</p>
+<p id="form-error" class="error" role="alert" hidden></p>
+<button class="button" type="submit" id="submit-brief">Convene the council</button>
+<p class="small">QUICK is free. The document takes a few minutes to write.</p>
+</div>
+</div>
+</form>
+<div id="council-state" class="council-state" hidden tabindex="-1" aria-live="polite"><div class="council-marks" aria-hidden="true"><i></i><i></i><i></i><i></i></div><h3>The council deliberates.</h3><p id="council-line">Sorting your processes into ceremonial and instrumental.</p><p class="small">This takes a few minutes. Leave the tab open.</p></div>
+<div id="brief-result" class="brief-result" hidden tabindex="-1"></div>
+<noscript><p>The sliders work without JavaScript, but convening a council requires it. <a href="report.html">Read the sample document instead.</a></p></noscript>
+</div></section>
+<section class="showcase wrap" id="sample" aria-labelledby="sample-title">
+<div><h2 id="sample-title">Four engines.</h2><p>Not a use-case generator. Four readings of the same organization, each of which has to survive a second reader.</p>
+<div class="output-nav" role="group" aria-label="The four engines"><button type="button" class="selected" aria-pressed="true" data-preview="ceremony">The ceremony audit</button><button type="button" aria-pressed="false" data-preview="ledger">The decision ledger</button><button type="button" aria-pressed="false" data-preview="people">The people arc</button><button type="button" aria-pressed="false" data-preview="staffing">The staffing map</button></div>
+<p class="small">Judged only by whether it controls a future outcome. That is the bar the audit puts your processes through, so it is the bar the document has to meet itself: every recommendation names the outcome it controls and the evidence that would show it.</p>
+<a href="report.html">Read a full sample document</a></div>
+<div class="report-stage" data-ui><article class="mini-report" id="report-preview"></article></div>
+</section>
+<section class="pricing-section" id="pricing"><div class="wrap">
+<div class="section-intro"><h2>Choose your depth.</h2><p>Start with QUICK. Add detail or a human conversation when the decision calls for it.</p></div>
+<div class="pricing-table">
+<div class="price-row" data-ui><h3>QUICK</h3><p>A first strategy pass from your positions and brief.</p><div><strong>Free</strong><a href="#instrument">Try the instrument</a></div></div>
+<div class="price-row" data-ui><h3>DETAILED</h3><p>The same four engines, built against your own public filings and documents rather than only your self-report, with every claim carrying a primary source.</p><div><strong>Paid</strong><span>On request</span><a href="report.html">Inspect the specimen</a></div></div>
+<div class="price-row" data-ui><h3>Advisory</h3><p>A conversation to challenge assumptions and put the strategy to work.</p><div><strong>By arrangement</strong><span>Scope and rate on request</span><button type="button" class="text-button" id="advisory-button">Preview advisory request</button></div></div>
+</div></div></section>
+<section class="patron-teaser wrap"><figure><img src="assets/council.webp" alt="Original imagined illustration of Sorghaghtani in a council setting, looking across papers toward the open steppe." width="900" height="1200" loading="lazy"><figcaption>Original AI-generated illustration. Not a historical likeness.</figcaption></figure><div><h2>The mind behind the name.</h2><p>We chose a strategist as our patron figure. Not a conqueror on a horse.</p><p>Sorghaghtani Beki cultivated political alliances, supported education, and helped bring Möngke to power in 1251, as described in <a href="https://www.ebsco.com/research-starters/biography/sorghaghtani-beki">Timothy May's biography for EBSCO</a>.</p><p>Our reading is a design principle: build the conditions for sound decisions. Leave the mythology out. Named for Sorghaghtani Beki, the strategist who never took the throne and raised four rulers. Succession, not dependency.</p><a class="button secondary" href="patron.html">Why the Kurultai</a></div></section>
+</main>
+<footer class="site-footer"><div class="wrap"><p class="footer-thesis">Nobody planned the acceleration.<br>It's just what the log says.</p><div class="footer-name">The Kurultai</div><p class="small" style="max-width:62ch;margin-top:28px">The staffing map names where hiring enters. When it does, <a href="https://rippertherecruiter.com/">Ripper the Recruiter</a> sits in on the screening call and deals the next three questions as each answer lands. Free, no account.</p>
+<div class="footer-bottom"><span>A Prodigal Paradigm product</span><a href="https://prodigalparadigm.com">The parent practice</a><a href="identity.html">Design notes</a><a href="#main">Back to top</a></div></div></footer>
+<dialog id="advisory-dialog"><button class="dialog-close" type="button" aria-label="Close advisory request">Close</button><h2>A human at the table.</h2><p>The advisory tier is the document and then a working session with Kathleen to argue with it: your decision, your timeframe, and the question the document has not settled.</p><p>Scope and rate depend on what you are deciding, so it starts with an email rather than a checkout.</p><a class="button" href="mailto:kathleen@prodigalparadigm.com?subject=The%20Kurultai%20-%20advisory">Write to Kathleen</a><button class="text-button dialog-close" type="button">Back to the page</button></dialog>
+</body></html>

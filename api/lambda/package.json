@@ -1,0 +1,11 @@
+{
+  "name": "kurultai-engine",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "comment": "The @aws-sdk/* v3 clients ship with the nodejs22.x runtime, so they are deliberately not bundled. Only these two are.",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
+    "zod": "^4.6.7"
+  }
+}

@@ -1,0 +1,56 @@
+# The Kurultai
+
+> A free AI strategy tool from Prodigal Paradigm. An organization describes
+> its processes in its own words and places itself on four sliders; the
+> Kurultai returns a strategy document built from that and nothing else.
+
+Built by Kathleen Bartin, Prodigal Paradigm LLC, Millbrook, New York.
+
+## What it produces
+
+A document with four sections, called the four engines:
+
+- **Ceremony audit.** Each process is sorted into instrumental, meaning it is
+  judged by whether it controls a future outcome, and ceremonial, meaning it
+  runs on precedent or displays status. Recommendations attach only to the
+  first kind.
+- **Management-decision ledger.** Every hour the work frees up is entered as a
+  decision a named role makes by a named date.
+- **People arc.** Documenting what people actually do all day, then working out
+  what the job is now.
+- **Staffing map.** Five builder archetypes, mixed for the organization's
+  stage, naming where hiring enters.
+
+Every recommendation names the future outcome it controls and the evidence
+that would show it.
+
+## The constraint worth knowing
+
+The Kurultai does not produce headcount-reduction recommendations, ever. This
+is enforced in the engine's instructions and again in code on the way out,
+where a breach gets one corrective retry and then fails the job rather than
+returning the document. The enforcement is public and readable.
+
+## What happens to the input
+
+It is sent to Anthropic's API to be read and comes back as the document.
+Nothing is stored beyond a request count and the finished document, which
+deletes itself within two hours. No account, no tracking.
+
+## Pricing
+
+- QUICK: free, no account.
+- DETAILED and advisory: priced on request, kathleen@prodigalparadigm.com
+
+## Pages
+
+- [Homepage and the instrument](https://thekurultai.com/)
+- [A sample document](https://thekurultai.com/report.html)
+- [Why the name: Sorghaghtani Beki](https://thekurultai.com/patron.html)
+- [The clause enforcement, in code](https://github.com/prodigalparadigm/thekurultai/blob/main/api/lambda/clause.mjs)
+
+## Not this
+
+"Kurultai" is also a Mongol and Turkic council, the parliament of Kazakhstan,
+and the People's Kurultai of Kyrgyzstan. This is none of those; it is a
+software product at thekurultai.com.

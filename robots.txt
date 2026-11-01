@@ -1,0 +1,10 @@
+# The Kurultai - thekurultai.com
+# Everything here is meant to be read, by people and by machines alike.
+User-agent: *
+Allow: /
+
+# The design record is working notes, not product. It carries a noindex tag
+# as well; this is the same decision stated where a crawler looks first.
+Disallow: /identity.html
+
+Sitemap: https://thekurultai.com/sitemap.xml

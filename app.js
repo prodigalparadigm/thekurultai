@@ -58,22 +58,25 @@ $('#reset-ranges')?.addEventListener('click', () => {
   ranges[0].focus();
 });
 
-/* ---------------- what the four engines are ----------------
-   Authored copy, not model output, so innerHTML is safe here. */
-const previews = {
-  ceremony: `<p class="report-tag">The Kurultai · Engine one</p><h3>The ceremony audit.</h3><p class="report-lede">Point an instrumental tool at a ceremonial process and the process absorbs it and produces more ceremony, faster.</p><h4>What it does</h4><p>Every process you describe is sorted into two piles. Instrumental: it is judged by whether it controls a future outcome. Ceremonial: it runs on precedent, or it displays status.</p><h4>The rule</h4><p>Recommendations attach only to the first pile. The second pile is named for the management conversation it deserves, with no tooling recommendation attached to it.</p><div class="report-bottom">Veblen · Instrumental vs ceremonial</div>`,
-  ledger: `<p class="report-tag">The Kurultai · Engine two</p><h3>The decision ledger.</h3><p class="report-lede">Freed time stays free only by explicit management decision.</p><h4>Why it exists</h4><p>The washing machine gave households back hours and the hours went straight back into the same work, because nobody decided otherwise. The same thing is happening now, faster.</p><h4>What it produces</h4><table><caption class="small">One row per decision</caption><thead><tr><th scope="col">Capacity freed</th><th scope="col">Owned by</th><th scope="col">By when</th></tr></thead><tbody><tr><td>What the work gives back</td><td>A named role</td><td>A date</td></tr></tbody></table><p>A row with no owner is not a decision, it is a hope. The table is meant to be signed.</p><div class="report-bottom">Redeployment · MyWork · Growth</div>`,
-  people: `<p class="report-tag">The Kurultai · Engine three</p><h3>The people arc.</h3><p class="report-lede">The piece nobody is selling.</p><h4>MyRunbook</h4><p>Each person documents what they actually do all day. It is the only way to see what hands off and what cannot, and it is the thing that stops domain knowledge walking out of the building unrecorded.</p><h4>MyWork</h4><p>Having seen it, work out what the job is now. Then the ladder: equipped, oriented, builder, ready to write code with an agent. That is what engaged has to mean if it is going to mean anything.</p><div class="report-bottom">Trained incapacity · The adoption ladder</div>`,
-  staffing: `<p class="report-tag">The Kurultai · Engine four</p><h3>The staffing map.</h3><p class="report-lede">Five archetypes, mixed for the stage you are actually at.</p><h4>The mix</h4><p>Prototyper, builder, sweeper, grower, maintainer. Before product-market fit the weight sits on the first three; growing, it moves to the middle; once the thing is working, to the last three.</p><h4>What you get</h4><p>Which archetypes are already in the building, which you would be hiring or partnering for, and the hiring conversation named where hiring actually enters.</p><div class="report-bottom">Cherny · In-house vs to-hire</div>`,
-};
-document.querySelectorAll('[data-preview]').forEach((btn) => btn.addEventListener('click', () => {
-  document.querySelectorAll('[data-preview]').forEach((other) => {
-    other.classList.toggle('selected', other === btn);
-    other.setAttribute('aria-pressed', String(other === btn));
+/* ---------------- the four engines ----------------
+   These descriptions used to live here as HTML strings written in with
+   innerHTML. An AEO review found the consequence: a crawler that does not run
+   JavaScript saw four tab labels and no explanation of what the product does,
+   on the page an answer engine reads first. They are static HTML now, and this
+   only shows and hides them. */
+const PANELS = ["ceremony", "ledger", "people", "staffing"];
+document.querySelectorAll("[data-preview]").forEach((btn) => btn.addEventListener("click", () => {
+  const want = btn.dataset.preview;
+  document.querySelectorAll("[data-preview]").forEach((other) => {
+    const on = other === btn;
+    other.classList.toggle("selected", on);
+    other.setAttribute("aria-pressed", String(on));
   });
-  $('#report-preview').innerHTML = previews[btn.dataset.preview];
+  PANELS.forEach((k) => {
+    const panel = document.getElementById("preview-" + k);
+    if (panel) panel.hidden = k !== want;
+  });
 }));
-if ($('#report-preview')) $('#report-preview').innerHTML = previews.ceremony;
 
 /* ---------------- submit, then poll ---------------- */
 const SLIDER_KEYS = { staffing: 'staffing', governance: 'data_governance', risk: 'risk_tolerance', investment: 'upfront_investment' };

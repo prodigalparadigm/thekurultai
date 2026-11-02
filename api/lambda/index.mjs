@@ -39,6 +39,10 @@ function corsFor(event) {
     "access-control-allow-headers": "content-type",
     "access-control-allow-methods": "POST, GET, OPTIONS",
     "access-control-max-age": "3600",
+    /* Without this the browser hides Retry-After from the page, so the
+       "about N minutes" message added earlier tonight could never fire and
+       every rate-limited visitor was told "shortly". */
+    "access-control-expose-headers": "retry-after",
     vary: "Origin",
   };
 }
@@ -61,7 +65,7 @@ function validate(payload) {
   const intake = {
     company: {
       name: String(c.name || "").slice(0, 120).trim(),
-      industry: String(c.industry || "").slice(0, 120).trim(),
+      industry: String(c.industry || "").slice(0, 160).trim(),  // the page sends "<type> - <industry>"
       size: String(c.size || "").slice(0, 60).trim(),
       regulated: Boolean(c.regulated),
     },
@@ -150,7 +154,10 @@ async function generate(intake, note) {
     if (!res.parsed_output) throw Object.assign(new Error("unparsed"), { kind: "unparsed" });
 
     /* John's Clause, second line: the instructions are the first. */
-    const findings = clauseFindings(res.parsed_output);
+    const intakeText = [intake.processes, intake.current_ai, intake.staffing,
+                        intake.outcome_90, intake.company?.name, intake.company?.industry]
+                        .filter(Boolean).join(" \n ");
+    const findings = clauseFindings(res.parsed_output, "", intakeText);
     if (!findings.length) return { doc: res.parsed_output, usage, retried };
 
     note("clause_breach", { attempt, hits: findings.length, fields: findings.map((f) => f.field).slice(0, 6) });
@@ -256,6 +263,12 @@ export async function handler(event) {
     if (!/^[0-9a-f-]{36}$/.test(id)) return J(400, { error: "bad_id", message: "Bad job id." });
     const r = await ddb.send(new GetCommand({ TableName: CONFIG.tableName, Key: { pk: "job#" + id } }));
     if (!r.Item) return J(404, { error: "no_job", message: "That document has expired. Run it again." });
+    /* The page promises the document deletes itself within two hours. The TTL
+       row carries that, but DynamoDB removes expired items on its own
+       schedule - days, sometimes - so without this check the promise was
+       true of the intent and false of the behaviour. */
+    if (Number(r.Item.expires) && Number(r.Item.expires) < now())
+      return J(404, { error: "expired", message: "That document has expired. Run it again." });
     if (r.Item.status === "done")
       return J(200, { status: "done", document: JSON.parse(r.Item.doc) });
     if (r.Item.status === "failed")

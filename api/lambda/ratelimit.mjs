@@ -1,13 +1,19 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, UpdateCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { CONFIG } from "./config.mjs";
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const HOUR = 3600, DAY = 86400;
 
-// Visitor IPs are hashed, never stored. The salt only needs to be stable.
-const SALT = process.env.IP_SALT || "kurultai";
+// Visitor IPs are hashed, never stored.
+/* The salt has to be SECRET as well as stable: this file is in a public repo,
+   and with a known salt every IPv4 address can be precomputed, which turns
+   the hash back into the thing it was meant to hide. It is set at deploy time
+   from SSM. The fallback is deliberately random per cold start - that costs a
+   little limiter accuracy across restarts and never silently reinstates a
+   published salt. */
+const SALT = process.env.IP_SALT || ("ephemeral-" + randomUUID());
 const idFor = (ip) => createHash("sha256").update(SALT + "|" + ip).digest("hex").slice(0, 32);
 const today = () => new Date().toISOString().slice(0, 10);
 

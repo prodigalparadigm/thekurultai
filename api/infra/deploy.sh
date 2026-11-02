@@ -21,6 +21,7 @@ REGION="${AWS_REGION:-us-east-1}"
 FN="kurultai-engine"
 TABLE="KurultaiLimits"
 PARAM="/kurultai/anthropic-api-key"
+SALT_PARAM="/kurultai/ip-salt"
 ROLE="kurultai-engine-role"
 API="kurultai-api"
 ACCOUNT="$(aws sts get-caller-identity --query Account --output text)"
@@ -38,6 +39,19 @@ if ! aws ssm get-parameter --name "$PARAM" --region "$REGION" >/dev/null 2>&1; t
 else
   echo "already present (rotate with: aws ssm put-parameter --name $PARAM --type SecureString --value NEWKEY --overwrite)"
 fi
+
+say "1b/7  IP salt -> SSM (encrypted)"
+# The salt that hashes visitor IPs must not live in a public repo. Minted once
+# here, never printed, read into the function's environment at deploy time.
+if ! aws ssm get-parameter --name "$SALT_PARAM" --region "$REGION" >/dev/null 2>&1; then
+  aws ssm put-parameter --name "$SALT_PARAM" --type SecureString \
+    --value "$(openssl rand -hex 32)" --region "$REGION" \
+    --description "Salt for hashing visitor IPs in the rate limiter" >/dev/null
+  echo "minted."
+else
+  echo "already present."
+fi
+IP_SALT="$(aws ssm get-parameter --name "$SALT_PARAM" --with-decryption --region "$REGION" --query Parameter.Value --output text)"
 
 say "2/7  DynamoDB table for the limits and the finished documents"
 aws dynamodb describe-table --table-name "$TABLE" --region "$REGION" >/dev/null 2>&1 || {
@@ -65,7 +79,7 @@ aws iam put-role-policy --role-name "$ROLE" --policy-name engine-access --policy
   \"Version\":\"2012-10-17\",
   \"Statement\":[
     {\"Effect\":\"Allow\",\"Action\":[\"ssm:GetParameter\"],
-     \"Resource\":\"arn:aws:ssm:${REGION}:${ACCOUNT}:parameter${PARAM}\"},
+     \"Resource\":[\"arn:aws:ssm:${REGION}:${ACCOUNT}:parameter${PARAM}\",\"arn:aws:ssm:${REGION}:${ACCOUNT}:parameter${SALT_PARAM}\"]},
     {\"Effect\":\"Allow\",\"Action\":[\"dynamodb:GetItem\",\"dynamodb:PutItem\",\"dynamodb:UpdateItem\"],
      \"Resource\":\"arn:aws:dynamodb:${REGION}:${ACCOUNT}:table/${TABLE}\"},
     {\"Effect\":\"Allow\",\"Action\":[\"lambda:InvokeFunction\"],
@@ -88,7 +102,7 @@ else
     --runtime nodejs22.x --handler index.handler \
     --role "arn:aws:iam::${ACCOUNT}:role/${ROLE}" \
     --zip-file fileb://function.zip --timeout 600 --memory-size 1024 \
-    --environment "Variables={SELF_FUNCTION=${FN}}" >/dev/null
+    --environment "Variables={SELF_FUNCTION=${FN},IP_SALT=${IP_SALT}}" >/dev/null
   # Cap how far a burst can fan out. On a new account the total concurrency
   # limit is 10 and AWS refuses to let reservations drop the unreserved pool
   # below that, so this is allowed to fail: the account limit is already the cap.
@@ -100,8 +114,15 @@ aws lambda wait function-updated --function-name "$FN" --region "$REGION"
 # 600s covers the worker invocation. The request path answers in well under a
 # second; it is the same function, so it takes the same timeout.
 aws lambda update-function-configuration --function-name "$FN" --region "$REGION" \
-  --timeout 600 --environment "Variables={SELF_FUNCTION=${FN}}" >/dev/null
+  --timeout 600 --environment "Variables={SELF_FUNCTION=${FN},IP_SALT=${IP_SALT}}" >/dev/null
 aws lambda wait function-updated --function-name "$FN" --region "$REGION"
+
+# Lambda retries a failed ASYNC invocation twice by default. The worker's own
+# try/catch handles its errors, but a timeout or an out-of-memory kill escapes
+# it, and the job then reruns up to twice more without passing the daily cap.
+aws lambda put-function-event-invoke-config --function-name "$FN" --region "$REGION" \
+  --maximum-retry-attempts 0 >/dev/null 2>&1 && echo "   async retries set to 0" \
+  || echo "   (could not set async retry config; check it by hand)"
 
 say "6/7  HTTP API"
 APIID="$(aws apigatewayv2 get-apis --region "$REGION" \

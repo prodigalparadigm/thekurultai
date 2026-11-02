@@ -129,6 +129,7 @@ form?.addEventListener('submit', async (e) => {
   };
 
   const waiting = $('#council-state');
+  $('#council-line').textContent = 'Sorting your processes into ceremonial and instrumental.';
   $('#brief-result').hidden = true;
   waiting.hidden = false;
   waiting.focus();
@@ -187,12 +188,32 @@ form?.addEventListener('submit', async (e) => {
        the old code fell straight through to the failure message and told the
        user their run had died while the server was still working on it.
        Found by a stress test on 1 Nov 2026. */
+    /* 400 and 404 are final: an unknown or expired id never becomes a
+       document, and the old loop ignored any body without a status and
+       waited forever. */
+    if (r.status === 400 || r.status === 404) {
+      clearInterval(poll);
+      stop(j?.message || 'That document is no longer available. Run it again.');
+      return;
+    }
     if (r.status === 429 || !j || typeof j.status !== 'string') return;
-    if (j.status === 'running') return;
+    if (j.status === 'running') {
+      /* And an overall ceiling, for a job that dies without writing a status
+         at all - a timeout or an out-of-memory kill. */
+      if (Date.now() - started > 15 * 60 * 1000) {
+        clearInterval(poll);
+        stop('This one has been going for fifteen minutes, which means something went wrong rather than slowly. Try again, or write to kathleen@prodigalparadigm.com.');
+      }
+      return;
+    }
     clearInterval(poll);
     if (j.status === 'done') { waiting.hidden = true; renderDocument(j.document); return; }
     const reasons = {
-      clause: 'The draft kept recommending something this product does not recommend, so it was not shipped. That is the rail doing its job. Write to kathleen@prodigalparadigm.com and she will look at it.',
+      /* The old wording told the buyer the draft "kept recommending" cuts.
+         A grant fund that failed because its own initials matched the guard
+         was accused of asking for something it never mentioned. Say what
+         actually happened: our check stopped it, and that may be our fault. */
+      clause: 'Our safety check stopped this document before it reached you. That check is deliberately blunt and it sometimes stops documents it should not. Please write to kathleen@prodigalparadigm.com - if it misfired she wants to know, and she will send you the document.',
       too_long: 'Your document ran past the length this tier writes in one pass. That is our limit, not a problem with what you typed. Try again, or write to kathleen@prodigalparadigm.com for the full version.',
       refused: 'The engine declined that one. If that looks wrong, write to kathleen@prodigalparadigm.com.',
     };

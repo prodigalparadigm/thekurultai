@@ -25,7 +25,8 @@ const FORBIDDEN = [
   /\bRIF\b/,
   /\blay\s?off(?:s|ing)?\b/i,
   /\blaid\s+off\b/i,
-  /\bredundanc(?:y|ies)\b/i,
+  /\bmade\s+redundant\b/i,
+  /\bredundanc(?:y|ies)\s+(?:pay|package|payment|programme|program|consultation)\b/i,
   /\bdownsiz(?:e|ing)\b/i,
   /\brightsiz(?:e|ing)\b/i,
   /\bsever(?:ance)\s+(?:plan|package|budget)/i,
@@ -33,6 +34,9 @@ const FORBIDDEN = [
   /\bcut\s+(?:the\s+)?(?:[\w-]+\s+){0,3}(?:roles?|positions?|jobs?|head\s?count|staff|teams?|agents?|reps?|analysts?|clerks?|adjusters?|drivers?|advisors?|coordinators?)\b/i,
   /\battrition\s+target/i,
   /\bbackfill\s+freeze\b/i,
+  /\b(?:do\s+not|don't|avoid|stop)\s+backfill/i,
+  /\blet\s+go\s+of\s+(?:[\w-]+\s+){0,3}(?:roles?|positions?|staff|people|analysts?|agents?|adjusters?|coordinators?)\b/i,
+  /\bposts?\s+redundant\b/i,
   /\bhiring\s+freeze\b/i,
   /\bhead\s?count\s+sav(?:ing|ings)/i,
   /\bfte\s+sav(?:ing|ings)/i,
@@ -81,6 +85,12 @@ const EXEMPT = [
   /(?:does|do|will|can) not (?:produce|recommend|write|provide|include)/i,
   /\brather than (?:cutting|reducing|eliminating)/i,
   /\binstead of (?:cutting|reducing|eliminating)/i,
+  /* A layoff can be the buyer's subject matter rather than our proposal. A
+     workforce board processes layoff notices; an outplacement firm serves
+     laid-off workers. The 1 Nov evening test found both being blocked. */
+  /\blay\s?offs?[\s-]+(?:notice|notification|list|paperwork|process|filing|claim|report|rule|law|act)/i,
+  /\blaid[\s-]off\s+(?:worker|employee|staff|people|person|client|participant|member)/i,
+  /\bWARN\s+Act\b/i,
 ];
 
 /* ---------- naming is not recommending ----------
@@ -95,7 +105,27 @@ const EXEMPT = [
    model to delete the refusal sentence it was obliged to write. The rail was
    fighting the spec. In these two fields a forbidden term is a breach only
    when the same sentence is also ADVOCATING - telling them to do it. */
-const NAMING_OK = (path) => path === "capacity_statement" || /\.process$/.test(path);
+/* Reducing TIME is the product's whole point; reducing PEOPLE is the thing it
+   will not do. The hardened patterns could not tell them apart, so "Reduce
+   agent handle time" and "Cut analyst time on the close" were being blocked -
+   17 of 18 ordinary sentences in the 1 Nov evening test. If the object of the
+   verb is time, the sentence is not a breach. */
+const TIME_OBJECT = /\b(?:handle\s+time|cycle\s+time|wait\s+time|turnaround|time|hours?|minutes?|days?|overtime|rework|backlog|queue|effort|toil|delay|latency)\b/i;
+const CUTS_TIME = (sentence) => {
+  const m = /\b(?:reduc\w*|cut\w*|trim\w*|shrink\w*)\b([\s\S]{0,60})/i.exec(sentence);
+  return Boolean(m && TIME_OBJECT.test(m[1]));
+};
+
+const NAMING_OK = (path) =>
+  path === "capacity_statement" || path === "lead" ||
+  /^reading\./.test(path) || /^open_questions\[/.test(path) ||
+  /\.process$/.test(path) || /hiring_note$/.test(path);
+
+/* The title is the buyer's own organization name with "'s Kurultai" after it.
+   A grant fund called the Regional Innovation Fund puts "RIF" in it, and the
+   guard killed that run twice on both attempts - no retry can fix a trigger
+   that is the customer's name. Never scanned. */
+const NEVER_SCAN = (path) => path === "title";
 
 const ADVOCACY = [
   /\brecommend/i, /\bwe advise\b/i, /\byou should\b/i, /\bshould\b/i,
@@ -114,10 +144,16 @@ const IMPERATIVE = [
 
 /* Returns [] when the document is clean, otherwise one finding per hit.
    Walks the parsed object so a finding can name the field it came from. */
-export function clauseFindings(doc, path = "") {
+export function clauseFindings(doc, path = "", intake = "") {
+  /* Text the buyer typed is not a recommendation we made. A workforce board
+     whose job is WARN Act layoff notices will have "layoff" all over its
+     intake, and quoting it back is correct behaviour. Anything echoed
+     verbatim from the intake is skipped. */
+  const echoed = String(intake || "").toLowerCase();
   const out = [];
   const walk = (node, p) => {
     if (typeof node === "string") {
+      if (NEVER_SCAN(p)) return;
       const naming = NAMING_OK(p);
       for (const sentence of node.split(/(?<=[.;:!?])\s+/)) {
         /* An exemption says "these words are here for an innocent reason".
@@ -132,6 +168,8 @@ export function clauseFindings(doc, path = "") {
              3. attribution ("you asked for X") is a report, so allowed
              4. otherwise the ordinary exemptions, then advocacy  */
         if (EXEMPT_ALWAYS.some((e) => e.test(sentence))) continue;
+        if (CUTS_TIME(sentence)) continue;
+        if (echoed && echoed.includes(sentence.trim().toLowerCase())) continue;
         const commanding = IMPERATIVE.some((a) => a.test(sentence));
         if (!commanding) {
           if (ATTRIBUTION.some((a) => a.test(sentence))) continue;

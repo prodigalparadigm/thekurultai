@@ -19,7 +19,10 @@ export const CONFIG = {
 
   // --- what a single request may contain (checked before any spend) ---
   maxFieldChars: 4000,        // per free-text field
-  maxTotalChars: 12000,       // all fields together
+  /* The page's own maxlengths add to 12,800 (three 4,000s and the 800-char
+     outcome), so a 12,000 ceiling here rejected a buyer who filled in exactly
+     what the form let them type. Match the form. */
+  maxTotalChars: 12800,       // all fields together
 
   // --- per-caller token bucket ---
   perIpPerHour: 4,

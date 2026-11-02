@@ -8,6 +8,7 @@ import { DynamoDBDocumentClient, PutCommand, GetCommand, UpdateCommand } from "@
 import { CONFIG } from "./config.mjs";
 import { takeToken, takeDailyBudget } from "./ratelimit.mjs";
 import { Doc, SYSTEM, userPrompt, clauseFindings, CLAUSE_RETRY } from "./engine.mjs";
+import { safeDetail } from "./safelog.mjs";
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const lambda = new LambdaClient({});
@@ -205,11 +206,14 @@ export async function handler(event) {
       note("run_done", { ...usage, retried, rows: doc.ceremony_audit?.rows?.length ?? 0 });
     } catch (e) {
       const kind = e?.kind || e?.name || "error";
-      /* The shape of the failure, never the key. An API 400 describes the
-         field it rejected, and without it a bad request is unguessable, so
-         the message is logged truncated. Anthropic does not echo credentials
-         in error text; the key never appears in e.message. */
-      console.error("run_failed", kind, e?.status ?? "", String(e?.message ?? "").slice(0, 600));
+      /* The shape of the failure, never the content. An API 400 describes the
+         field it rejected, and without that a bad request is unguessable - so
+         the shape is still logged, but it is recognised in the message by
+         safeDetail() rather than copied out of it. This line used to carry
+         600 characters of e.message, which is the one path by which a
+         fragment of a buyer's intake could reach a log that outlives the two
+         hours the page promises. See safelog.mjs. */
+      console.error("run_failed", kind, JSON.stringify(safeDetail(e)));
       note("run_failed", { kind });
       await ddb.send(new UpdateCommand({
         TableName: CONFIG.tableName,

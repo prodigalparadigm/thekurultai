@@ -18,6 +18,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { clauseFindings } from "../lambda/clause.mjs";
+import { safeDetail } from "../lambda/safelog.mjs";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const SITE = process.env.KURULTAI_SITE || join(ROOT, "..");
@@ -265,6 +266,100 @@ for (const [field, text, shouldFlag, why] of [
   const label = `${shouldFlag ? "flags" : "allows"} ${field}: ${why}`;
   if (flagged === shouldFlag) pass(label);
   else fail(label, `expected ${shouldFlag ? "a finding" : "none"}, got ${flagged ? "a finding" : "none"}`);
+}
+
+/* ---------------- what a failure may say in a log ----------------
+   The page promises "no record you did not take with you", and CloudWatch
+   outlives the two hours the document does. `run_failed` used to log 600
+   characters of the upstream error message, which an API 400 can fill with
+   the field it rejected AND the value it rejected - a buyer's own sentence.
+
+   These are assertions, not a recorded gap, because unlike the clause guard
+   this one is decidable: the question is not "is this advocacy" but "does
+   this string carry prose", and a space is prose. */
+head("A failed run says the shape, never the content");
+{
+  /* Sentences a buyer would actually type, placed where the API puts the
+     value it is complaining about. */
+  const INTAKE = [
+    "Dana in payroll reconciles the ledger by hand every Friday",
+    "Acme Pharmaceuticals wants to cut the night shift",
+    "we restructure around a leaner team of six",
+    "contact ops@example.com about the pilot",
+  ];
+  const ERRORS = [
+    ["API 400 quoting the rejected value", (t) => Object.assign(
+      new Error(`400 {"type":"error","error":{"type":"invalid_request_error","message":"messages.0.content.0.text: ${t}"}}`),
+      { status: 400, name: "BadRequestError", request_id: "req_011CSomeId9876" })],
+    ["a 500 with prose in the message", (t) => Object.assign(new Error(t), { status: 500 })],
+    ["a bare throw", (t) => new Error(t)],
+    ["prose on an object that also has a code", (t) => Object.assign(new Error(t), { code: "ECONNRESET" })],
+    ["the message hidden one level down", (t) => Object.assign(new Error("request failed"), {
+      status: 400, error: { type: "invalid_request_error", message: t } })],
+  ];
+
+  /* Every value in the line, flattened, so nothing hides in a nested field. */
+  const values = (o) => Object.values(o).map(String);
+
+  for (const [label, make] of ERRORS) {
+    for (const text of INTAKE) {
+      const out = safeDetail(make(text));
+      const line = JSON.stringify(out);
+      const spaced = values(out).filter((v) => /\s/.test(v));
+      /* The invariant that does the work: no pattern in safelog.mjs admits a
+         space, so a value carrying one means prose got copied through. */
+      if (spaced.length) {
+        fail(`${label}: no value carries prose`, `${line}  <- ${JSON.stringify(spaced)}`);
+        continue;
+      }
+      /* And belt-and-braces: no distinctive word of the intake survives. */
+      const words = text.toLowerCase().match(/[a-z@.]{5,}/g) || [];
+      const leaked = words.filter((w) => line.toLowerCase().includes(w));
+      if (leaked.length) fail(`${label}: no intake word survives`, `${line}  <- ${JSON.stringify(leaked)}`);
+      else pass(`${label}: nothing of "${text.slice(0, 28)}..." survives`);
+    }
+  }
+}
+
+/* The other half of the same check. A sanitizer that returned {} for
+   everything would pass the test above and make every failure unreadable, so
+   the diagnosis a bad request needs has to survive. */
+head("...and still says enough to debug");
+{
+  const KEEPS = [
+    ["the rejected field path", Object.assign(
+      new Error('400 {"error":{"type":"invalid_request_error","message":"messages.0.content.0.text: a sentence"}}'),
+      { status: 400, name: "BadRequestError" }),
+      (o) => o.at === "messages.0.content.0.text" && o.status === 400 && o.type === "invalid_request_error"],
+    ["the truncation position", Object.assign(
+      new Error("Unterminated string in JSON at position 30150"), { name: "SyntaxError" }),
+      (o) => o.json === "unterminated_string" && o.pos === 30150],
+    ["the request id", Object.assign(new Error("overloaded_error"), { status: 529, request_id: "req_011CAbC123xyz" }),
+      (o) => o.request_id === "req_011CAbC123xyz" && o.type === "overloaded_error"],
+    ["a network code", Object.assign(new Error("socket hang up"), { code: "ETIMEDOUT" }),
+      (o) => o.code === "ETIMEDOUT"],
+    ["nothing recognisable, said out loud", new Error("we restructure around a leaner team"),
+      (o) => o.detail === "withheld"],
+  ];
+  for (const [what, err, ok] of KEEPS) {
+    const out = safeDetail(err);
+    if (ok(out)) pass(`keeps ${what}`);
+    else fail(`keeps ${what}`, JSON.stringify(out));
+  }
+}
+
+/* The leak was one line, so the check that it cannot come back is one grep.
+   Any console call in the engine that reaches for .message is the old bug. */
+head("No log line in the engine reaches for a message");
+{
+  const LAMBDA = join(ROOT, "lambda");
+  for (const f of ["index.mjs", "engine.mjs", "clause.mjs", "ratelimit.mjs", "safelog.mjs"]) {
+    const src = readFileSync(join(LAMBDA, f), "utf8");
+    const bad = src.split("\n").filter((l) =>
+      /console\.(log|error|warn)/.test(l) && /\bmessage\b/.test(l));
+    if (bad.length) fail(`${f}: no console call logs a message`, bad.join("\n"));
+    else pass(`${f}: no console call logs a message`);
+  }
 }
 
 /* ---------------- live: the adversarial battery ---------------- */

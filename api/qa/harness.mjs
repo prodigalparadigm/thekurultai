@@ -198,7 +198,7 @@ const MUST_CATCH = [
 const MUST_PASS = [
   "The Kurultai does not produce headcount-reduction recommendations, ever.",
   "The AI strategy tool that won't write your layoff plan.",
-  "The Ceres engagement produced documented value at zero layoffs.",
+  "The earlier engagement produced documented value at zero layoffs.",
   "This is not a layoff plan and will not become one.",
   "Four hours a week are freed in the close; the controller decides by 30 November whether they go to the forecast or to MyWork.",
   "Growth, not reduction: the freed capacity is assigned to the RFP backlog.",

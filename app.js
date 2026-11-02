@@ -227,6 +227,18 @@ const el = (tag, props = {}, kids = []) => {
   for (const k of [].concat(kids)) if (k !== null && k !== undefined) n.append(k);
   return n;
 };
+const TERMS = {
+  myrunbook: "MyRunbook: each person writes down what they actually do all day, in their own words. It is the only way to see which parts of a job hand off and which cannot.",
+  mywork: "MyWork: what follows MyRunbook. Having seen the work on a page, the person and their manager decide what the job is now - what it keeps, what it sheds, what it gains.",
+};
+/* Like strongLine, but the label is a defined term: hover gets the gloss, a
+   tap or a keyboard gets the full definition on the homepage. */
+const termLine = (label, id, text) => el('p', {}, [
+  el('a', { className: 'term', href: `https://thekurultai.com/#${id}`, title: TERMS[id],
+            textContent: label }),
+  '. ' + String(text ?? ''),
+]);
+
 const strongLine = (label, text) => el('p', {}, [el('strong', { textContent: label }), ' ' + String(text ?? '')]);
 
 function table(cols, rows) {
@@ -333,8 +345,11 @@ function renderDocument(d) {
   ]));
 
   group.append(engine('Engine three', 'The people arc', [
-    strongLine('MyRunbook.', d.people_arc?.runbook),
-    strongLine('MyWork.', d.people_arc?.mywork),
+    /* The two house terms, linked to their definition. A reader of a
+       generated document may never have seen the homepage, and these are
+       the only two words in it we invented. */
+    termLine('MyRunbook', 'myrunbook', d.people_arc?.runbook),
+    termLine('MyWork', 'mywork', d.people_arc?.mywork),
     table(['Rung', 'What it means here', 'Who is standing on it'],
       (d.people_arc?.ladder || []).map((r) => el('tr', {}, [
         cell(r.rung, 'Rung'), cell(r.means, 'What it means here'), cell(r.who, 'Who is standing on it'),

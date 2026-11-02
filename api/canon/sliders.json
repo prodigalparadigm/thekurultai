@@ -5,46 +5,33 @@
       "id": "staffing",
       "group": "AI Strategy objective",
       "label": "Staffing",
-      "left": "People buy my craft - firing everyone is counterproductive",
+      "left": "People spend their paychecks - firing everyone is counterproductive",
       "right": "I don't need the donuts & the chit chat - agenticize it all",
-      "maps_to": "archetype mix + MyWork weight",
-      "concept_transcription_2026-11-01": {
-        "right": "I don't need the donuts & the chit-chat - agenticize it all"
-      }
+      "maps_to": "archetype mix + MyWork weight"
     },
     {
       "id": "data_governance",
       "group": "AI Strategy objective",
       "label": "Data Governance",
-      "left": "Lock that stuff down - in-house LLMs only",
-      "right": "It's already in the cloud - let's just move fast, faster than the competition",
-      "maps_to": "platform and model-tier recommendations (ZDR expertise)",
-      "concept_transcription_2026-11-01": {
-        "left": "Lock that shit down. In house LLMs only",
-        "right": "It's already in the cloud. Let's just move fast, faster than the competition"
-      }
+      "left": "Lock the data down - in-house LLMs only",
+      "right": "It's already in the cloud, focus on moving faster than the competition",
+      "maps_to": "platform and model-tier recommendations (ZDR expertise)"
     },
     {
       "id": "risk_tolerance",
       "group": "AI Strategy profile",
       "label": "Risk tolerance",
-      "left": "We're publicly traded - people read the docs",
-      "right": "We're public but who cares - let's be pioneers and mavericks",
-      "maps_to": "stage-gating posture (stagegate's observe/suggest/act is this slider operationalized)",
-      "concept_transcription_2026-11-01": {
-        "left": "We're publicly traded. People read the docs"
-      }
+      "left": "We're public - people read",
+      "right": "We're public but no one cares - let's maverick this up",
+      "maps_to": "stage-gating posture (stagegate's observe/suggest/act is this slider operationalized)"
     },
     {
       "id": "upfront_investment",
       "group": "AI Strategy profile",
       "label": "Upfront Investment",
-      "left": "This is the wave of the now - all the $$ goes to this",
+      "left": "This is the biggest bet of the century - all chips on the table",
       "right": "Man, keep it cheap",
-      "maps_to": "build-vs-buy + sequencing",
-      "concept_transcription_2026-11-01": {
-        "left": "This is the wave of the Now - all the $$ goes to this"
-      }
+      "maps_to": "build-vs-buy + sequencing"
     }
   ],
   "lines": {
@@ -55,5 +42,5 @@
     "privacy": "What you type is sent to Anthropic's API to be read, and comes back as your document. Nothing is stored on our side but a count, so the day's limit can be enforced, and the finished document, which deletes itself within two hours. No account, no tracking, no record you did not take with you.",
     "patron": "Named for Sorghaghtani Beki, the strategist who never took the throne and raised four rulers. Succession, not dependency."
   },
-  "_variant_note": "The brand concept delivered 2026-11-01 transcribed the notebook independently and differs from the sealed spec on four poles; those readings are recorded per slider as concept_transcription_2026-11-01. The sealed spec is what the pages use. Kathleen rules on which is the notebook. The sharpest difference is data_governance left: 'Lock that shit down' in the concept, 'Lock that stuff down' in the spec."
+  "_variant_note": "Kathleen rewrote the poles herself on 2026-11-01 at 21:32, editing index.html directly on GitHub (commit ec0088c), which settles the sealed-spec-versus-brand-concept question that had been open all day: neither, these are her words. This file was updated to follow the page and is canon again. The flow is meant to run the other way - edit this file, then the page - because the engine quotes these sentences back to the buyer and reads them from here, not from the HTML. The QA harness caught the drift immediately, which is what it is for."
 }

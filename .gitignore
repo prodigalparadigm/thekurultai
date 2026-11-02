@@ -16,9 +16,7 @@ api/samples/
 # site went public: ~/claude_system/kurultai_archive_2026-11-01/
 rainbow/
 
-# Sample editions naming a real organization stay out of the repo until their
-# gates clear. Anything committed here is publicly fetchable at its URL the
-# moment it is pushed, linked or not, indexed or not - and the Allen Wall says
-# the subject gets a heads-up before publication, not after. Delete this line
-# to ship an edition.
-editions/
+# The Centene edition stays out until its gate clears: its posting could not
+# be confirmed live, and the Allen Wall puts the courtesy heads-up before
+# publication, not after. Delete this line to ship it.
+editions/centene.html

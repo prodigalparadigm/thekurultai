@@ -47,6 +47,7 @@ deletes itself within two hours. No account, no tracking.
 - [Homepage and the instrument](https://thekurultai.com/)
 - [A sample document](https://thekurultai.com/report.html)
 - [Why the name: Sorghaghtani Beki](https://thekurultai.com/patron.html)
+- [Outside-in editions](https://thekurultai.com/editions/) - the Kurultai run against real organizations (Charles Schwab, Applied Materials, Novartis, The Jed Foundation) using only their public filings, Form 990s and job postings
 - [The clause enforcement, in code](https://github.com/prodigalparadigm/thekurultai/blob/main/api/lambda/clause.mjs)
 
 ## Not this

@@ -20,10 +20,11 @@
     {
       "id": "risk_tolerance",
       "group": "AI Strategy profile",
-      "label": "Risk tolerance",
+      "label": "Risk aversion",
       "left": "We're public - people read",
       "right": "We're public but no one cares - let's maverick this up",
-      "maps_to": "stage-gating posture (stagegate's observe/suggest/act is this slider operationalized)"
+      "maps_to": "stage-gating posture (stagegate's observe/suggest/act is this slider operationalized)",
+      "_label_note": "Renamed from 'Risk tolerance' on 2026-11-02 after John tried it. The cautious pole sits at the top of the dial, so on a dial labelled 'tolerance' sliding up made you less risk-tolerant - the control fought its own name. 'Aversion' points the same way the handle does. The id stays risk_tolerance: it is the API field name and the engine's schema key, and renaming it would change the contract for no reader's benefit."
     },
     {
       "id": "upfront_investment",

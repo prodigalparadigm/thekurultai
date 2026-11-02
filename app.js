@@ -291,7 +291,7 @@ function renderDocument(d) {
 
   /* How the four placements read back. */
   const stance = el('section', { className: 'doc-section' }, el('h2', { textContent: 'Where you put yourself' }));
-  const labels = { staffing: 'Staffing', data_governance: 'Data governance', risk_tolerance: 'Risk tolerance', upfront_investment: 'Upfront investment' };
+  const labels = { staffing: 'Staffing', data_governance: 'Data governance', risk_tolerance: 'Risk aversion', upfront_investment: 'Upfront investment' };
   for (const [k, label] of Object.entries(labels))
     if (d.reading?.[k]) stance.append(strongLine(label + '.', d.reading[k]));
   doc.append(stance);

@@ -118,7 +118,14 @@ form?.addEventListener('submit', async (e) => {
     current_ai: $('#current_ai').value.trim(),
     staffing: $('#staffing_text').value.trim(),
     outcome_90: $('#priority').value.trim(),
-    sliders: Object.fromEntries(ranges.map((r) => [SLIDER_KEYS[r.id], Number(r.value)])),
+    /* The dial is drawn with `direction: rtl`, so 100 sits at the TOP of the
+       track, and the sentence at the top of each dial is canon's LEFT pole.
+       The engine reads 0 as the left pole. So the number the input carries is
+       the mirror of the number the engine needs, and it is inverted here, at
+       the single boundary where the page hands over to the API.
+       Found by a stress test on 1 Nov 2026: every document before that read
+       all four sliders backwards. Do not "simplify" this line. */
+    sliders: Object.fromEntries(ranges.map((r) => [SLIDER_KEYS[r.id], 100 - Number(r.value)])),
   };
 
   const waiting = $('#council-state');
@@ -152,26 +159,35 @@ form?.addEventListener('submit', async (e) => {
     'Working out where the freed capacity lands, and who decides.',
     'Reading your staffing against the five archetypes.',
     'Writing the ninety days.',
-    'Checking the document against its own acceptance bar.',
+    'Still working. A long document takes a few minutes.',
   ];
   let tick = 0;
   const started = Date.now();
   const poll = setInterval(async () => {
     const mins = Math.floor((Date.now() - started) / 60000);
-    $('#council-line').textContent = lines[Math.min(tick++ >> 1, lines.length - 1)]
+    $('#council-line').textContent = lines[Math.min(tick++, lines.length - 1)]
       + (mins >= 3 ? ' Still going; a long one.' : '');
-    let j;
+    let j, r;
     try {
-      const r = await fetch(`${KURULTAI_ENDPOINT}?id=${encodeURIComponent(id)}`);
+      r = await fetch(`${KURULTAI_ENDPOINT}?id=${encodeURIComponent(id)}`);
       j = await r.json();
     } catch { return; }                   // a dropped poll is not a failure
+    /* Nor is a rate-limited one. The poll bucket can drain while the job is
+       still running perfectly well, and a 429 body carries no `status`, so
+       the old code fell straight through to the failure message and told the
+       user their run had died while the server was still working on it.
+       Found by a stress test on 1 Nov 2026. */
+    if (r.status === 429 || !j || typeof j.status !== 'string') return;
     if (j.status === 'running') return;
     clearInterval(poll);
     if (j.status === 'done') { waiting.hidden = true; renderDocument(j.document); return; }
-    stop(j.reason === 'clause'
-      ? 'The draft kept recommending something this product does not recommend, so it was not shipped. That is the rail doing its job. Write to kathleen@prodigalparadigm.com and she will look at it.'
-      : 'That one failed on the way back. Try again, or write to kathleen@prodigalparadigm.com.');
-  }, 4000);
+    const reasons = {
+      clause: 'The draft kept recommending something this product does not recommend, so it was not shipped. That is the rail doing its job. Write to kathleen@prodigalparadigm.com and she will look at it.',
+      too_long: 'Your document ran past the length this tier writes in one pass. That is our limit, not a problem with what you typed. Try again, or write to kathleen@prodigalparadigm.com for the full version.',
+      refused: 'The engine declined that one. If that looks wrong, write to kathleen@prodigalparadigm.com.',
+    };
+    stop(reasons[j.reason] || 'That one failed on the way back. Try again, or write to kathleen@prodigalparadigm.com.');
+  }, 9000);   // a run takes minutes; polling faster only drains the bucket
 });
 
 /* ---------------- the document ---------------- */

@@ -10,8 +10,15 @@ const FORBIDDEN = [
   /\breduc(?:e|es|ed|ing)\s+(?:the\s+|its\s+|our\s+|their\s+)?(?:head\s?count|staff|staffing|workforce|fte|roles?|positions?|jobs?|team)/i,
   /\b(?:trim|trimming|shrink|shrinking)\s+(?:the\s+|its\s+|our\s+)?(?:head\s?count|staff|workforce|team|roles?)/i,
   /\bhead\s?count\s+(?:comes\s+)?(?:down|falls|drops)/i,
-  /\bconsolidat(?:e|es|ing|ion)\s+(?:of\s+)?(?:\w+\s+){0,2}roles?\b/i,
+  /\bconsolidat(?:e|es|ing|ion)\s+(?:of\s+)?(?:[\w-]+\s+){0,2}roles?\b/i,
   /\brole\s+consolidation\b/i,
+  // found by the 1 Nov stress test: a count target on a role noun, and the
+  // euphemism that no word list will ever fully cover - this catches the
+  // common shape rather than pretending to catch all of them
+  /\breduc(?:e|es|ed|ing)\s+(?:the\s+)?(?:[\w-]+\s+){0,3}(?:roles?|positions?|jobs?|head\s?count|staff|teams?|agents?|reps?|analysts?|clerks?|adjusters?|drivers?|advisors?|coordinators?)\b/i,
+  /\b(?:roles?|positions?|jobs?|head\s?count|staff|teams?|agents?|reps?|analysts?|clerks?|adjusters?|drivers?|advisors?|coordinators?)\s+(?:from\s+\d+\s+)?to\s+\d+\b/i,
+  /\boff\s+the\s+payroll\b/i,
+  /\bexit(?:ing)?\s+(?:the\s+)?(?:[\w-]+\s+){0,2}(?:roles?|positions?|jobs?|head\s?count|staff|teams?|agents?|reps?|analysts?|clerks?|adjusters?|drivers?|advisors?|coordinators?)\b/i,
   /\b(?:head\s?count|workforce|staff|fte)\s+reduction/i,
   /\breduction\s+in\s+(?:force|head\s?count|staff)\b/i,
   /\breduction[- ]in[- ]force\b/i,
@@ -23,18 +30,43 @@ const FORBIDDEN = [
   /\brightsiz(?:e|ing)\b/i,
   /\bsever(?:ance)\s+(?:plan|package|budget)/i,
   /\beliminat(?:e|ing|ion)\s+(?:of\s+)?(?:\w+\s+){0,3}(?:roles?|positions?|jobs?|head\s?count)/i,
-  /\bcut\s+(?:\w+\s+){0,2}(?:roles?|positions?|jobs?|head\s?count|staff)/i,
+  /\bcut\s+(?:the\s+)?(?:[\w-]+\s+){0,3}(?:roles?|positions?|jobs?|head\s?count|staff|teams?|agents?|reps?|analysts?|clerks?|adjusters?|drivers?|advisors?|coordinators?)\b/i,
   /\battrition\s+target/i,
   /\bbackfill\s+freeze\b/i,
   /\bhiring\s+freeze\b/i,
   /\bhead\s?count\s+sav(?:ing|ings)/i,
   /\bfte\s+sav(?:ing|ings)/i,
-  /\breplace\s+(?:the\s+)?(?:\w+\s+){0,2}(?:team|staff|people|workers?)\s+with\b/i,
+  /\breplace\s+(?:the\s+)?(?:[\w-]+\s+){0,3}(?:roles?|positions?|jobs?|head\s?count|staff|teams?|agents?|reps?|analysts?|clerks?|adjusters?|drivers?|advisors?|coordinators?|people|workers?)\s+with\b/i,
 ];
 
 /* Sentences that are allowed to contain the words because they are the product
    saying what it will not do. Checked first; a line that matches one of these
    is not evidence of a breach. */
+/* These stay exempt whatever else the sentence does: they are the product
+   saying what it will not do, and it must be able to say so plainly. */
+const EXEMPT_ALWAYS = [
+  /does not produce headcount[- ]reduction/i,
+  /won'?t write your layoff plan/i,
+  /will not write your layoff plan/i,
+  /not a layoff plan/i,
+  /not a workforce[- ]reduction/i,
+  /is not the product/i,
+  /is not what (?:this|the kurultai)/i,
+  /(?:does|do|will|can) not (?:produce|recommend|write|provide|include)/i,
+];
+
+/* Reporting the buyer's request back to them. Innocent on its own; not
+   innocent when the same sentence also issues the instruction. */
+const ATTRIBUTION = [
+  /\byou asked\b/i,
+  /\byou (?:have )?requested\b/i,
+  /\byou are asking\b/i,
+  /\byou came (?:here )?for\b/i,
+  /\bwhat you asked for\b/i,
+  /\bthe (?:intake|brief) (?:asks|asked|requests)\b/i,
+  /\byour brief\b/i,
+];
+
 const EXEMPT = [
   /does not produce headcount[- ]reduction/i,
   /won'?t write your layoff plan/i,
@@ -49,14 +81,6 @@ const EXEMPT = [
   /(?:does|do|will|can) not (?:produce|recommend|write|provide|include)/i,
   /\brather than (?:cutting|reducing|eliminating)/i,
   /\binstead of (?:cutting|reducing|eliminating)/i,
-  // attribution: repeating back what the buyer asked for is not advocating it
-  /\byou asked\b/i,
-  /\byou (?:have )?requested\b/i,
-  /\byou are asking\b/i,
-  /\byou came (?:here )?for\b/i,
-  /\bwhat you asked for\b/i,
-  /\bthe (?:intake|brief) (?:asks|asked|requests)\b/i,
-  /\byour brief\b/i,
 ];
 
 /* ---------- naming is not recommending ----------
@@ -80,6 +104,14 @@ const ADVOCACY = [
   /\bbegin by\b/i, /\bstart by\b/i, /\bimplement/i, /\bexecute\b/i,
 ];
 
+/* A bare imperative is advocacy without ever using an advocating word.
+   "Reduce headcount to 30 by Q2, as you asked" is an instruction, and the
+   attribution at the end does not turn it into a report. This is the one
+   signal that overrides attribution. */
+const IMPERATIVE = [
+  /(?:^|[,;:]\s*)(?:reduce|cut|eliminate|remove|replace|trim|shrink|downsize|rightsize|consolidate|move|exit|lay\s*off|let\s+go)\b/i,
+];
+
 /* Returns [] when the document is clean, otherwise one finding per hit.
    Walks the parsed object so a finding can name the field it came from. */
 export function clauseFindings(doc, path = "") {
@@ -88,9 +120,24 @@ export function clauseFindings(doc, path = "") {
     if (typeof node === "string") {
       const naming = NAMING_OK(p);
       for (const sentence of node.split(/(?<=[.;:!?])\s+/)) {
-        if (EXEMPT.some((e) => e.test(sentence))) continue;
-        // in a quoting or refusing field, the words alone are not a breach
-        if (naming && !ADVOCACY.some((a) => a.test(sentence))) continue;
+        /* An exemption says "these words are here for an innocent reason".
+           Attribution - "as you asked" - is only innocent while the sentence
+           is reporting the request. A sentence that attributes AND advocates
+           in the same breath ("as you asked, reduce headcount to 30") was
+           skipped outright by the old order of these checks. The stress test
+           walked two sentences straight through on exactly that. */
+        /* Precedence, most decisive first:
+             1. the product's own refusal lines are always allowed
+             2. a bare imperative is always a breach, whatever else is present
+             3. attribution ("you asked for X") is a report, so allowed
+             4. otherwise the ordinary exemptions, then advocacy  */
+        if (EXEMPT_ALWAYS.some((e) => e.test(sentence))) continue;
+        const commanding = IMPERATIVE.some((a) => a.test(sentence));
+        if (!commanding) {
+          if (ATTRIBUTION.some((a) => a.test(sentence))) continue;
+          if (EXEMPT.some((e) => e.test(sentence))) continue;
+          if (naming && !ADVOCACY.some((a) => a.test(sentence))) continue;
+        }
         for (const re of FORBIDDEN) {
           const m = re.exec(sentence);
           if (m) out.push({ field: p, pattern: String(re), text: sentence.trim().slice(0, 240) });

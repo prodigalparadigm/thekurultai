@@ -105,21 +105,47 @@ async function generate(intake, note) {
   let usage = { input: 0, output: 0 };
   let retried = false;
 
+  /* messages.parse() throws on a truncated body before stop_reason can be
+     read, so the shape of that error is classified here rather than landing
+     in the catch-all as "Error". A caller who sees "too_long" is being told
+     something true; a caller who saw "Error" was being told nothing. */
+  const classify = (e) => {
+    const m = String(e?.message ?? "");
+    if (/Unterminated string|Failed to parse structured output|Unexpected end of JSON/i.test(m))
+      return "too_long";
+    if (e?.status) return "api_" + e.status;
+    return e?.kind || e?.name || "error";
+  };
+
   for (let attempt = 0; attempt < 2; attempt++) {
-    const res = await client.messages.parse({
-      model: CONFIG.model,
-      max_tokens: CONFIG.maxTokens,
-      system: SYSTEM,
-      messages,
-      output_config: {
-        format: zodOutputFormat(Doc),
-        ...(/haiku/i.test(CONFIG.model) ? {} : { effort: "high" }),
-      },
-    });
+    /* Streamed, not awaited whole. At max_tokens this size the SDK refuses a
+       non-streaming request outright - "Streaming is required for operations
+       that may take longer than 10 minutes" - and that refusal is what the
+       first fix for the truncation bug ran into. finalMessage() still returns
+       a ParsedMessage carrying parsed_output, so structured outputs are
+       unaffected; only the transport changes. */
+    let res;
+    try {
+      const stream = client.messages.stream({
+        model: CONFIG.model,
+        max_tokens: CONFIG.maxTokens,
+        system: SYSTEM,
+        messages,
+        output_config: {
+          format: zodOutputFormat(Doc),
+          ...(/haiku/i.test(CONFIG.model) ? {} : { effort: "high" }),
+        },
+      });
+      res = await stream.finalMessage();
+    } catch (e) {
+      throw Object.assign(e, { kind: classify(e) });
+    }
     usage = {
       input: usage.input + (res.usage?.input_tokens ?? 0),
       output: usage.output + (res.usage?.output_tokens ?? 0),
     };
+    if (res.stop_reason === "max_tokens")
+      throw Object.assign(new Error("truncated"), { kind: "too_long", usage });
     if (res.stop_reason === "refusal") throw Object.assign(new Error("refused"), { kind: "refused" });
     if (!res.parsed_output) throw Object.assign(new Error("unparsed"), { kind: "unparsed" });
 
@@ -185,6 +211,24 @@ export async function handler(event) {
         ExpressionAttributeNames: { "#s": "status" },
         ExpressionAttributeValues: { ":s": "failed", ":r": kind, ":f": now() },
       }));
+      /* The daily slot was spent before generation started. A run that failed
+         for our reason should not cost the next visitor their turn, so give
+         it back. Deliberately not refunded for a clause failure: that one
+         consumed the model twice and is a real cost. */
+      if (kind !== "clause") {
+        try {
+          await ddb.send(new UpdateCommand({
+            TableName: CONFIG.tableName,
+            Key: { pk: "global#" + new Date().toISOString().slice(0, 10) },
+            UpdateExpression: "ADD #r :minus",
+            ExpressionAttributeNames: { "#r": "reads" },
+            ExpressionAttributeValues: { ":minus": -1 },
+          }));
+          note("slot_refunded", { kind });
+        } catch (refundErr) {
+          console.error("refund_failed", refundErr?.name);
+        }
+      }
     }
     return { ok: true };
   }

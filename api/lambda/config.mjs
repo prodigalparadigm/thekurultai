@@ -10,7 +10,12 @@ export const CONFIG = {
   // `effort` is rejected by Haiku, so index.mjs only sends it to models
   // that accept it. Switching model here is enough.
   model: "claude-opus-5",
-  maxTokens: 16000,
+  /* Raised from 16000 on 2026-11-01. At effort "high" the thinking tokens
+     share this ceiling with the JSON, and a long governance section ran out
+     of room mid-string: three stress-test runs died on "Unterminated string
+     in JSON at position 30150". The document itself is only ~8-10k output
+     tokens; the headroom is for the thinking. */
+  maxTokens: 32000,
 
   // --- what a single request may contain (checked before any spend) ---
   maxFieldChars: 4000,        // per free-text field

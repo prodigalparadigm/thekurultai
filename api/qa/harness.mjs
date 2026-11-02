@@ -66,7 +66,7 @@ const decode = (html) =>
 head("Slider poles, page against canon (her notebook, Nov 1)");
 /* The landing page carries the instrument; app.js carries the document it
    renders. Between them they are the whole public surface. */
-const FILES = { landing: "index.html", app: "app.js", report: "report.html", patron: "patron.html" };
+const FILES = { landing: "index.html", app: "app.js", report: "report.html", patron: "patron.html", style: "style.css" };
 const read = {};
 for (const [name, rel] of Object.entries(FILES)) {
   const p = join(SITE, rel);
@@ -84,6 +84,46 @@ for (const s of CANON.sliders) {
   }
   if (app.includes(s.id)) pass(`${s.label} slider id reaches the engine`);
   else fail(`${s.label} slider id reaches the engine`, s.id);
+}
+
+/* ---------------- the slider direction ----------------
+   A stress test on 1 Nov 2026 found every document reading all four sliders
+   backwards, and this harness had passed it: the pole checks above use
+   `includes`, which proves a sentence is somewhere on the page and says
+   nothing about which end of the dial it sits on.
+
+   The chain that has to hold, and each link is checked here:
+     style.css draws the track with direction:rtl, so 100 is at the TOP
+     index.html puts canon's LEFT pole at the top of each dial
+     app.js therefore sends 100 - value, so the engine gets 0 for left
+     engine.mjs reads 0 as the left pole
+   Break any one and the advice points at the wrong pole while every word on
+   the page stays correct. */
+head("Slider direction, end to end");
+{
+  // the page's own ids for the dials, mapped to canon's ids, as app.js maps them
+  const DIALS = { staffing: "staffing", governance: "data_governance",
+                  risk: "risk_tolerance", investment: "upfront_investment" };
+  const canonById = Object.fromEntries(CANON.sliders.map((s) => [s.id, s]));
+
+  if (/direction:\s*rtl/.test(read.style || "")) pass("the track is drawn rtl, so 100 is at the top");
+  else fail("the track is drawn rtl, so 100 is at the top",
+    "style.css no longer sets direction:rtl - if 0 is now at the top, app.js must stop inverting");
+
+  for (const [domId, canonId] of Object.entries(DIALS)) {
+    const c = canonById[canonId];
+    const top = new RegExp(`id="${domId}-top"[^>]*>\\s*[“"]?([^<”]+)`).exec(landing);
+    const got = top ? top[1].replace(/[“”"]/g, "").trim() : null;
+    if (got === c.left) pass(`${c.label}: the TOP of the dial is canon's LEFT pole`);
+    else fail(`${c.label}: the TOP of the dial is canon's LEFT pole`,
+      `top reads: ${got ?? "(not found)"}\nexpected:  ${c.left}`);
+  }
+
+  if (/100 - Number\(r\.value\)/.test(app))
+    pass("app.js inverts the dial value before sending it");
+  else
+    fail("app.js inverts the dial value before sending it",
+      "the page sends the raw value, so the engine reads every slider backwards");
 }
 
 head("Lines the cut line requires on the page");
@@ -145,6 +185,14 @@ const MUST_CATCH = [
   "Headcount comes down as the queue shortens.",
   "A role consolidation across the two coordinator posts.",
   "Reducing staffing in the QA function is the second-year benefit.",
+  // the seven the 1 Nov stress test got past the checker
+  "Cut 80 tier-1 roles by end of Q1.",
+  "Cut the tier-1 team from 110 to 30 by end of Q1.",
+  "Replace the tier-1 agents with AI agents, one team at a time.",
+  "Reduce headcount to 30 by Q2, as you asked.",
+  "As you asked, reduce headcount in tier 1 to 30 by end of Q1.",
+  "Move 80 agents off the payroll by Q1.",
+  "Reduce the reps to twelve by the end of the quarter.",
 ];
 const MUST_PASS = [
   "The Kurultai does not produce headcount-reduction recommendations, ever.",

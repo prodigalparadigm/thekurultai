@@ -148,7 +148,17 @@ form?.addEventListener('submit', async (e) => {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
     });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(j.message || 'The council did not sit. Try again shortly.');
+    if (!r.ok) {
+      /* The server already knows how long the wait is and sends it in
+         Retry-After. Saying "shortly" when the real answer is eleven minutes
+         just buys a frustrated second attempt. */
+      const wait = Number(r.headers.get('retry-after'));
+      const mins = Number.isFinite(wait) && wait > 60 ? Math.ceil(wait / 60) : null;
+      throw new Error(
+        (j.message || 'The council did not sit.')
+        + (mins ? ` About ${mins} minute${mins === 1 ? '' : 's'}.` : '')
+      );
+    }
     id = j.id;
   } catch (err) { stop(err.message); return; }
 

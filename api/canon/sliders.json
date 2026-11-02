@@ -1,5 +1,5 @@
 {
-  "_note": "Her notebook, Nov 1 2026. Pole copy is canon and is signed off by Kathleen. Nothing here is paraphrased. The QA harness checks the live page against this file; if they disagree, the page is wrong.",
+  "_note": "CHANGING A POLE HERE OR ON THE PAGE REQUIRES A REDEPLOY: the engine quotes these sentences back and reads them from this file, baked into its bundle at deploy time. Run `node api/qa/harness.mjs --deployed` to check the live engine agrees. Her notebook, Nov 1 2026. Pole copy is canon and is signed off by Kathleen. Nothing here is paraphrased. The QA harness checks the live page against this file; if they disagree, the page is wrong.",
   "sliders": [
     {
       "id": "staffing",

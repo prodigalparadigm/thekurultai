@@ -75,6 +75,7 @@ a few dozen real runs. Nothing here is a quote.
 ## QA
 
     node qa/harness.mjs                      static, free, no network
+    node qa/harness.mjs --deployed           plus: does the live engine hold this canon?
     node qa/harness.mjs --live <endpoint>    plus the adversarial battery
 
 The static half runs before every push and answers the questions the

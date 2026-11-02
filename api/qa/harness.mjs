@@ -295,6 +295,42 @@ head("Known gaps in the regex guard (recorded, not asserted)");
   console.log("  run of both stress tests. This regex is the backstop, not the rail.");
 }
 
+/* ---------------- is the ENGINE running this canon? ----------------
+   The poles live in three places: index.html (crawlers need them in static
+   HTML), api/canon/sliders.json (the source), and the deployed Lambda's
+   bundle (the engine quotes them back in the reading section). The checks
+   above catch the first two drifting apart. Nothing caught the third, and on
+   1 Nov the page showed Kathleen's rewritten poles while the engine still
+   held the retired ones - with nothing wrong on screen to notice.
+
+   Needs AWS, so it only runs with --deployed. */
+if (process.argv.includes("--deployed")) {
+  head("The deployed engine is running this canon");
+  const { execSync } = await import("node:child_process");
+  try {
+    const url = execSync(
+      "aws lambda get-function --function-name kurultai-engine --region us-east-1 --query Code.Location --output text",
+      { encoding: "utf8" }).trim();
+    execSync(`curl -s -o /tmp/kurultai-deployed.zip "${url}"`);
+    const deployed = JSON.parse(
+      execSync("unzip -p /tmp/kurultai-deployed.zip sliders.json", { encoding: "utf8" })).sliders;
+    let drift = 0;
+    for (const c of CANON.sliders) {
+      const d = deployed.find((x) => x.id === c.id);
+      for (const side of ["left", "right"]) {
+        if (!d || d[side] !== c[side]) {
+          drift++;
+          fail(`${c.label} ${side}: engine matches canon`,
+            `canon:  ${c[side]}\nengine: ${d ? d[side] : "(slider missing)"}`);
+        }
+      }
+    }
+    if (!drift) pass(`all ${CANON.sliders.length * 2} poles in the deployed engine match canon`);
+  } catch (e) {
+    fail("could not read the deployed engine's canon", String(e.message).slice(0, 160));
+  }
+}
+
 const liveAt = process.argv.indexOf("--live");
 if (liveAt !== -1) {
   const endpoint = process.argv[liveAt + 1];

@@ -157,7 +157,7 @@ async function generate(intake, note) {
     const intakeText = [intake.processes, intake.current_ai, intake.staffing,
                         intake.outcome_90, intake.company?.name, intake.company?.industry]
                         .filter(Boolean).join(" \n ");
-    const findings = clauseFindings(res.parsed_output, "", intakeText);
+    const findings = clauseFindings(res.parsed_output, "", intakeText, intake.company?.name || "");
     if (!findings.length) return { doc: res.parsed_output, usage, retried };
 
     note("clause_breach", { attempt, hits: findings.length, fields: findings.map((f) => f.field).slice(0, 6) });

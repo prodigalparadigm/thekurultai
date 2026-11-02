@@ -144,18 +144,28 @@ const IMPERATIVE = [
 
 /* Returns [] when the document is clean, otherwise one finding per hit.
    Walks the parsed object so a finding can name the field it came from. */
-export function clauseFindings(doc, path = "", intake = "") {
+export function clauseFindings(doc, path = "", intake = "", orgName = "") {
   /* Text the buyer typed is not a recommendation we made. A workforce board
      whose job is WARN Act layoff notices will have "layoff" all over its
-     intake, and quoting it back is correct behaviour. Anything echoed
-     verbatim from the intake is skipped. */
+     intake, and quoting it back is correct behaviour. */
   const echoed = String(intake || "").toLowerCase();
+
+  /* The organization's own name is the sharpest case. A grant fund called the
+     Regional Innovation Fund puts "RIF" into the title and into any sentence
+     that names the client, and the guard killed that run twice. Skipping the
+     title alone was not enough - the name turns up in the prose too - so the
+     name is redacted out of every sentence before matching. */
+  const org = String(orgName || "").trim();
+  const strip = org
+    ? (t) => t.replace(new RegExp(org.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), " ")
+    : (t) => t;
   const out = [];
   const walk = (node, p) => {
     if (typeof node === "string") {
       if (NEVER_SCAN(p)) return;
       const naming = NAMING_OK(p);
-      for (const sentence of node.split(/(?<=[.;:!?])\s+/)) {
+      for (const raw of node.split(/(?<=[.;:!?])\s+/)) {
+        const sentence = strip(raw);
         /* An exemption says "these words are here for an innocent reason".
            Attribution - "as you asked" - is only innocent while the sentence
            is reporting the request. A sentence that attributes AND advocates

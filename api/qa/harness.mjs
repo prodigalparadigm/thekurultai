@@ -340,6 +340,51 @@ head("The sample company the page offers IS the fixture QA runs");
   else fail("the demo flag rides the request", "app.js no longer marks a demonstration run");
 }
 
+/* ---------------- the document's own copy ----------------
+   Faults found by reading a finished document rather than by running a test.
+   Each one shipped on every document until somebody read one. */
+head("The document's own prose holds up");
+{
+  const code = uncomment(app);
+
+  /* "The staged pattern that describes is a working one" - a sentence with no
+     subject. It was written to trail the stage-gate line, which is
+     conditional, so on any document without one it pointed at nothing. */
+  if (!/that describes is a working one/.test(code)) pass("the governance note is a whole sentence");
+  else fail("the governance note is a whole sentence",
+    "\"The staged pattern that describes is a working one\" has no subject");
+
+  /* The ledger's choice field is three lowercase tokens from the engine. One
+     of them is the house term MyWork, which this same document defines and
+     links; printed raw it read "mywork" in a table cell. */
+  const enginePath = join(ROOT, "lambda", "engine.mjs");
+  if (existsSync(enginePath)) {
+    const tokens = (/choice: z\.string\(\),\s*\/\/\s*([a-z |]+)/.exec(readFileSync(enginePath, "utf8")) || [, ""])[1]
+      .split("|").map((t) => t.trim()).filter(Boolean);
+    const map = (/const CHOICES = \{([^}]*)\}/.exec(code) || [, ""])[1];
+    const missing = tokens.filter((t) => !new RegExp(`\\b${t}:`).test(map));
+    if (tokens.length && !missing.length)
+      pass(`all ${tokens.length} ledger choices print as the house spells them`);
+    else fail("all ledger choices print as the house spells them",
+      tokens.length ? `not mapped: ${missing.join(", ")}` : "could not read the choice tokens from engine.mjs");
+    if (/mywork: 'MyWork'/.test(code)) pass("the ledger says MyWork, not mywork");
+    else fail("the ledger says MyWork, not mywork", "the house term is not capitalised in CHOICES");
+  }
+
+  /* A stage the model capitalised on purpose, lowercased by us. */
+  if (!/\$\{stage\.toLowerCase\(\)\}/.test(code)) pass("the stage keeps the case the engine wrote");
+  else fail("the stage keeps the case the engine wrote",
+    'stage.toLowerCase() turns "strong-PMF" into "strong-pmf"');
+
+  /* The engine writes fields, not a page, and does not control their order.
+     One run said the ledger was above the text and another said below it,
+     from the same intake. */
+  if (existsSync(enginePath) && /NEVER POINT BY POSITION/.test(readFileSync(enginePath, "utf8")))
+    pass("the engine is told not to point by position");
+  else fail("the engine is told not to point by position",
+    "nothing stops the model writing \"the ledger above\" into a field it cannot place");
+}
+
 /* ---------------- the honesty rail ----------------
    A document built from a company we invented says so, on screen and on
    paper, and the pre-rendered sample carries it statically - the page a

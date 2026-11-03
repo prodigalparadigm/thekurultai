@@ -445,6 +445,12 @@ const archetypeCell = (text, col) => {
   td.setAttribute('data-col', col);
   return td;
 };
+/* The engine constrains `choice` to exactly one of three lowercase tokens.
+   Printed raw, the ledger said "mywork" in a table cell on a page that
+   defines MyWork as a term and links it to a definition. Anything the engine
+   did not constrain falls through unchanged rather than being guessed at. */
+const CHOICES = { redeployment: 'Redeployment', mywork: 'MyWork', growth: 'Growth' };
+
 function recBlock(r) {
   const d = el('div', {}, [el('p', { textContent: r.what })]);
   if (r.why) d.append(el('p', { textContent: r.why }));
@@ -515,7 +521,10 @@ function renderDocument(d, opts = {}) {
      turns it into nonsense. */
   const stage = (d.staffing_map?.stage || '').trim();
   metaRow('Scope', !stage ? 'As described in the brief'
-    : stage.length <= 28 ? `An organization at the ${stage.toLowerCase()} stage`
+    /* Not lowercased. The model writes stages like "strong-PMF", and forcing
+       the case turned that into "strong-pmf" in the one place a reader meets
+       it first. */
+    : stage.length <= 28 ? `An organization at the ${stage} stage`
     : stage);
   metaRow('Evidence status', isDemo
     ? 'None, and none is possible. The sample company has no filings because it has no existence.'
@@ -566,7 +575,7 @@ function renderDocument(d, opts = {}) {
     table(['Capacity freed', 'The decision', 'Lands in', 'Owned by', 'By when'],
       filled(d.decision_ledger?.rows, ['freed_capacity', 'decision', 'choice', 'assigned_role', 'by_when']).map((r) => el('tr', {}, [
         cell(r.freed_capacity, 'Capacity freed'), cell(r.decision, 'The decision'),
-        cell(r.choice, 'Lands in'), cell(r.assigned_role, 'Owned by'), cell(r.by_when, 'By when'),
+        cell(CHOICES[String(r.choice ?? '').trim()] ?? r.choice, 'Lands in'), cell(r.assigned_role, 'Owned by'), cell(r.by_when, 'By when'),
       ]))),
     el('p', { className: 'small', textContent: 'This table is meant to be signed. A row with no owner is not a decision, it is a hope.' }),
   ]));
@@ -625,7 +634,11 @@ function renderDocument(d, opts = {}) {
   if (d.governance?.kill_switch) gov.append(strongLine('Kill switch.', d.governance.kill_switch));
   if (d.governance?.stage_gate) gov.append(strongLine('Stage gate.', d.governance.stage_gate));
   gov.append(el('p', { className: 'citation-example' }, [
-    'The staged pattern that describes is a working one, not a diagram: observe, then suggest, then act, with promotion between stages a config change a named reviewer approves. ',
+    /* This used to read "The staged pattern that describes is a working one",
+       which has no subject - it was written to trail the stage-gate line and
+       lost its antecedent. The stage-gate line is conditional, so the
+       replacement stands on its own rather than pointing at a neighbour. */
+    'Observe, then suggest, then act, with promotion between stages a configuration change a named reviewer approves: that is a working pattern, not a diagram. ',
     el('a', { href: 'https://github.com/prodigalparadigm/stagegate', textContent: 'stagegate' }),
     ' is the implementation, with a hash-chained audit log and the kill switch wired in.',
   ]));

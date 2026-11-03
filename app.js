@@ -663,6 +663,6 @@ if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: re
   const observer = new IntersectionObserver((entries) => entries.forEach((entry) => {
     if (entry.isIntersecting) { entry.target.classList.add('reveal'); observer.unobserve(entry.target); }
   }), { threshold: .1 });
-  document.querySelectorAll('.hero-premise,.hero-paper,.hero-bottom h1,.standfirst,.section-intro h2,.section-intro p,.showcase h2,.report-stage,.patron-teaser figure,.patron-teaser h2,.footer-thesis')
+  document.querySelectorAll('.hero-premise,.hero-lede h1,.standfirst,.section-intro h2,.section-intro p,.showcase h2,.report-stage,.patron-teaser figure,.patron-teaser h2,.footer-thesis')
     .forEach((e) => observer.observe(e));
 }

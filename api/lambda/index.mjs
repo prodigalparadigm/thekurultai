@@ -201,7 +201,18 @@ async function generate(intake, note, stage = () => {}) {
 
     if (!findings.length) return { doc: res.parsed_output, usage, retried };
 
-    note("clause_breach", { attempt, hits: findings.length, fields: findings.map((f) => f.field).slice(0, 6) });
+    /* The PATTERN as well as the field. A clause_breach that records only
+       "decision_ledger.note" can never be told apart from a false positive
+       afterwards, which is how a guard stops being improvable: on 3 Nov a
+       canary tripped this on a clean document's ledger note and nothing in
+       the record could say whether the catch was right. The pattern is our
+       own source code, never the buyer's words, so logging it keeps the
+       promise that logs say the shape and never the content. */
+    note("clause_breach", {
+      attempt, hits: findings.length,
+      fields: findings.map((f) => f.field).slice(0, 6),
+      patterns: findings.map((f) => f.pattern).slice(0, 6),
+    });
     if (attempt === 1) {
       /* Twice is not a slip. Fail closed: a document that recommends cutting
          people is worse than no document, and this product says so in public. */

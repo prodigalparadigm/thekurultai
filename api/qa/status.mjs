@@ -114,7 +114,21 @@ else {
 
   /* John's Clause, all three layers. */
   console.log("\nJOHN'S CLAUSE");
-  console.log(`  ${n("clause_breach")} draft(s) caught by the regex, ${done.filter((d) => d.retried).length} rewritten and recovered`);
+  const breaches = lines.filter((l) => l.what === "clause_breach");
+  const retried = done.filter((d) => d.retried).length;
+  console.log(`  ${breaches.length} draft(s) caught by the regex, ${retried} rewritten and recovered`);
+  if (breaches.length) {
+    /* Which field and which pattern, so a false positive is diagnosable.
+       Never the passage - that is the buyer's own words. */
+    const where = {};
+    for (const b of breaches) for (const f of b.fields || []) where[f] = (where[f] || 0) + 1;
+    console.log("  in: " + Object.entries(where).map(([k, v]) => `${k} x${v}`).join(", "));
+    const pats = [...new Set(breaches.flatMap((b) => b.patterns || []))];
+    if (pats.length) for (const p of pats) console.log("      pattern " + p.slice(0, 96));
+    else console.log("      (no pattern recorded - this run predates pattern logging)");
+    if (done.length && retried / done.length > 0.15)
+      warn.push(`${Math.round(retried / done.length * 100)}% of runs needed a clause rewrite, which doubles their cost`);
+  }
   const reads = n("reader_done"), caught = n("reader_caught");
   const mute = n("reader_no_output"), gone = n("reader_unavailable");
   console.log(`  second reader: ran on ${reads} document(s), flagged ${caught}`);

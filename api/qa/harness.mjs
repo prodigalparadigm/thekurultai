@@ -663,6 +663,21 @@ head("...and still says enough to debug");
 
 /* The leak was one line, so the check that it cannot come back is one grep.
    Any console call in the engine that reaches for .message is the old bug. */
+/* A clause_breach must record WHICH pattern fired - otherwise a false
+   positive and a real catch are indistinguishable forever - and must never
+   record the matched TEXT, which is the buyer's own words. */
+head("A clause breach records the pattern, never the passage");
+{
+  const lam = readFileSync(join(ROOT, "lambda", "index.mjs"), "utf8");
+  const call = (/note\("clause_breach",[\s\S]*?\}\);/.exec(lam) || [""])[0];
+  if (/patterns:/.test(call)) pass("clause_breach records which pattern fired");
+  else fail("clause_breach records which pattern fired",
+    "a breach logged without its pattern can never be judged a false positive afterwards");
+  if (!/\bf\.text\b|\btext:/.test(call)) pass("clause_breach does not log the matched passage");
+  else fail("clause_breach does not log the matched passage",
+    "the matched sentence is the buyer's own words and must not reach CloudWatch");
+}
+
 head("No log line in the engine reaches for a message");
 {
   const LAMBDA = join(ROOT, "lambda");

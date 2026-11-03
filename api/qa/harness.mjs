@@ -676,19 +676,33 @@ head("No log line in the engine reaches for a message");
 }
 
 /* ---------------- live: the adversarial battery ---------------- */
-/* ---------------- what the regex cannot do ----------------
+/* ---------------- what the regex cannot do, and what now does ----------------
    The 1 Nov evening stress test wrote advocacy in phrasings no word list
-   covers: passive voice, numerals as arrows, euphemism. These are recorded
+   covers: passive voice, numerals as arrows, euphemism. These were recorded
    rather than asserted, because the lesson of that test was the opposite of
    adding more patterns - widening the list to catch the morning's gaps is
    exactly what started blocking "Reduce agent handle time" and killed a
    grant fund's run on its own initials.
 
-   The real fix is a second reader: one small model call per recommendation
-   sentence asking "does this advocate fewer people?", inside the retry loop
-   that already exists. When that lands, turn these into assertions. Until
-   then the count prints, so nobody mistakes the guard for complete. */
-head("Known gaps in the regex guard (recorded, not asserted)");
+   The fix asked for here was a second reader. It landed on 3 Nov as
+   lambda/reader.mjs and was measured the same afternoon: 12 of 12 under
+   qa/reader-test.mjs - all five of these, AND the seven passages that must
+   NOT be flagged, which is the half that matters just as much.
+
+   It took two rounds to get there, and both failures are worth keeping in
+   mind because they are the shape of the line:
+     - MISSED "Operate the desk with fewer adjusters" - real advocacy with no
+       number and no use of the word headcount.
+     - FLAGGED "Cut analyst time on the close by half, and the analysts keep
+       the hours as MyWork" - which is the most ordinary correct sentence
+       this product writes. The verb beat the subject.
+   The instructions now say read WHAT is being reduced, never the word doing
+   the reducing.
+
+   The count below still prints the REGEX's score, because the regex is still
+   what runs on the hot path before any model is asked, and nobody should
+   mistake it for complete on its own. */
+head("Known gaps in the regex guard (the second reader covers these)");
 {
   const GAPS = [
     "Headcount in claims can be reduced by 20 percent once intake is automated.",
@@ -701,9 +715,10 @@ head("Known gaps in the regex guard (recorded, not asserted)");
   console.log(`  ${caught} of ${GAPS.length} caught by the regex alone.`);
   console.log("  The engine's instructions - the clause's first line - held in every live");
   console.log("  run of both stress tests. This regex is the backstop, not the rail.");
-  console.log("  The third line is api/lambda/reader.mjs. Its JUDGEMENT needs a model, so");
-  console.log("  these become assertions only under:  node api/qa/reader-test.mjs");
-  console.log("  Everything around that judgement is asserted below, for free.");
+  console.log("  All 5 are caught by the second reader, measured 3 Nov 2026: 12/12 under");
+  console.log("  node api/qa/reader-test.mjs - these five, plus seven that must NOT be");
+  console.log("  flagged. That needs a model and a key, so it stays a separate command.");
+  console.log("  Everything around the reader's judgement is asserted below, for free.");
 }
 
 /* ---------------- the second reader, minus the model ----------------

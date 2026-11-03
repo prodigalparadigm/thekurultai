@@ -78,6 +78,30 @@ a few dozen real runs. Nothing here is a quote.
     node qa/harness.mjs --deployed           plus: does the live engine hold this canon?
     node qa/harness.mjs --live <endpoint>    plus the adversarial battery
 
+    node qa/status.mjs                       is anyone using it, is it still up
+    node qa/status.mjs 7                     the last seven days
+
+`status.mjs` costs nothing: no model call and no run against the daily cap.
+It checks the pages are served, pokes the endpoint with a deliberately bad
+job id - a clean `400 bad_id` proves the gateway routed and the function ran
+- and reads the counters the engine already keeps. It reports runs against
+the cap, how many distinct visitors booked one, what the outcomes were, and
+whether all three layers of John's Clause are firing. It ends with either
+NOTHING WRONG or a list. It cannot show what anybody typed: the engine logs
+shape and never content, and visitors are salted hashes.
+
+Two that DO cost, and say so before they spend:
+
+    node qa/reader-test.mjs                  the second reader's judgement
+    node qa/proofread.mjs <url or file>      read a finished page for prose faults
+
+`reader-test.mjs` is the one that turns the harness's "0 of 5" line into a
+real number - it asserts the five phrasings the regex cannot catch and the
+seven that must not be flagged. Two Haiku calls. `proofread.mjs` reads a
+rendered page and reports grammar, self-contradiction, raw database values
+printed as prose, positional pointing and unsourced claims; run it on
+anything before it ships. Both read the key from SSM with your credentials.
+
 The static half runs before every push and answers the questions the
 release-day cut line asks: do the slider poles on the page still match her
 notebook verbatim, is the privacy line there, is John's Clause stated in

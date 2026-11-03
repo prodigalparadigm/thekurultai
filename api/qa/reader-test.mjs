@@ -44,6 +44,28 @@ const MUST_PASS = [
   "Reduce rework, not people.",
 ];
 
+/* PRE-FLIGHT, before a cent is spent. The reader ignores fields under 26
+   characters, and two of the strings below sit at exactly 26. If an edit ever
+   trims one, it would vanish from the reader's view and this test would
+   report it as "not caught" - a false failure, or worse, a false pass on the
+   must-not-flag half. So check first that the reader can actually see every
+   line we are about to judge it on. */
+{
+  const { scannableFields } = await import("../lambda/clause.mjs");
+  const docs = [
+    { plan: { d30: MUST_CATCH.map((what) => ({ what })) } },
+    { capacity_statement: MUST_PASS[5], plan: { d30: MUST_PASS.filter((_, i) => i !== 5).map((what) => ({ what })) } },
+  ];
+  const visible = docs.flatMap((d) => scannableFields(d).filter((f) => f.text.trim().length > 25)).length;
+  const expected = MUST_CATCH.length + MUST_PASS.length;
+  if (visible !== expected) {
+    console.error(`Pre-flight failed: the reader would see ${visible} of ${expected} test lines.`);
+    console.error("Some are too short for it to look at, so the result would be meaningless.");
+    process.exit(1);
+  }
+  console.log(`Pre-flight: all ${expected} lines are visible to the reader.`);
+}
+
 const key = execFileSync("aws", [
   "ssm", "get-parameter", "--name", "/kurultai/anthropic-api-key",
   "--with-decryption", "--region", "us-east-1",

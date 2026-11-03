@@ -9,7 +9,11 @@ export const CONFIG = {
   // that is a judgement to make after reading a dozen, not up front.
   // `effort` is rejected by Haiku, so index.mjs only sends it to models
   // that accept it. Switching model here is enough.
-  model: "claude-opus-5",
+  /* LAUNCH WINDOW, 3 Nov 2026 - Kathleen's ruling: Opus 5.5 for the reveal,
+     and spend the Anthropic credits rather than hoard them. Was claude-opus-5.
+     REVERT TO claude-opus-5 WHEN THE WAVE PASSES, together with the cap below.
+     Both are deliberately temporary and both are in this one file. */
+  model: "claude-opus-5-5",
   /* Raised from 16000 on 2026-11-01. At effort "high" the thinking tokens
      share this ceiling with the JSON, and a long governance section ran out
      of room mid-string: three stress-test runs died on "Unterminated string
@@ -33,12 +37,29 @@ export const CONFIG = {
   pollPerIpBurst: 60,
 
   // --- the cap that actually bounds the bill ---
-  // Do the arithmetic before raising this. A QUICK sketch is roughly 3k input
-  // and 6-9k output tokens. At Opus 5 list prices that is about $0.55 a run,
-  // so 25/day is roughly $14 on a day that fills. Sonnet 5 is about $0.11 a
-  // run, so the same cap is about $3. Raise it only after watching `usage`
-  // in the logs for a week of real runs.
-  globalRunsPerDay: 25,
+  // Do the arithmetic before changing this. A QUICK sketch is roughly 3k input
+  // and 6-9k output tokens. At Opus 5 list prices that was about $0.55 a run.
+  //
+  // LAUNCH WINDOW, 3 Nov 2026: raised from 25 to 85 for a $50/day ceiling, on
+  // Kathleen's ruling. The arithmetic, stated so it can be checked rather than
+  // trusted: 85 x $0.55 = $47, and allowing for the ~10% of runs that take the
+  // clause retry and so pay for the model twice, a full day lands near $50.
+  //
+  // TWO HONEST CAVEATS.
+  //  1. This caps RUNS, not DOLLARS. The $50 is an estimate built on Opus 5
+  //     prices; Opus 5.5's are not verified here. After the first real day,
+  //     read `usage` out of the logs and correct this number rather than
+  //     leaving it on an assumption.
+  //  2. The second reader adds one Haiku call per run. It is a rounding error
+  //     against the above, which is exactly why it runs on Haiku.
+  //
+  // Earlier note in this file said 25/day was in tension with a $20 budget.
+  // That was wrong and is corrected here: the $20 in infra/budget-alarm.sh is
+  // an AWS budget covering Lambda, DynamoDB and API Gateway - pennies at this
+  // traffic. Model spend is billed to the Anthropic account, which has credit.
+  //
+  // REVERT TO 25 WHEN THE WAVE PASSES, together with the model above.
+  globalRunsPerDay: 85,
 
   // --- how long a finished document stays fetchable ---
   // Long enough to read and print, short enough that nothing accumulates.

@@ -830,6 +830,17 @@ if (process.argv.includes("--deployed")) {
     if (/NEVER POINT BY POSITION/.test(inBundle("engine.mjs")))
       pass("the deployed engine is told not to point by position");
     else fail("the deployed engine is told not to point by position", "the repo is ahead of the deploy");
+
+    /* The two launch-window values matter most of all to get deployed, since
+       the whole point of them is the day the announcement goes out. */
+    const localCfg = readFileSync(join(ROOT, "lambda", "config.mjs"), "utf8");
+    const liveCfg = inBundle("config.mjs");
+    for (const [what, re] of [["model", /model: "([^"]+)"/], ["daily cap", /globalRunsPerDay: (\d+)/]]) {
+      const want = (re.exec(localCfg) || [, "?"])[1];
+      const got = (re.exec(liveCfg) || [, "(unreadable)"])[1];
+      if (want === got) pass(`the deployed ${what} is ${got}`);
+      else fail(`the deployed ${what} matches config`, `repo says ${want}, production is running ${got}`);
+    }
   } catch (e) {
     fail("could not read the deployed engine's canon", String(e.message).slice(0, 160));
   }
@@ -995,6 +1006,22 @@ if (existsSync(samples)) {
     if (!bare.length) pass(`${f}: every numeric paragraph is sourced`);
     else fail(`${f}: every numeric paragraph is sourced`,
       bare.slice(0, 3).map((p) => p.slice(0, 110)).join("\n---\n"));
+  }
+}
+
+/* ---------------- launch-window settings ----------------
+   Two values in config.mjs are deliberately temporary. Temporary settings
+   become permanent by being forgotten, so every run of this harness says out
+   loud whether they are still in force. Not a failure - a reminder. */
+{
+  const cfg = readFileSync(join(ROOT, "lambda", "config.mjs"), "utf8");
+  const model = (/model: "([^"]+)"/.exec(cfg) || [, "?"])[1];
+  const cap = Number((/globalRunsPerDay: (\d+)/.exec(cfg) || [, 0])[1]);
+  if (model !== "claude-opus-5" || cap !== 25) {
+    head("Launch-window settings are IN FORCE");
+    console.log(`  model ${model}, cap ${cap} runs/day.`);
+    console.log("  These are the 3 Nov reveal settings. Revert to claude-opus-5 and 25");
+    console.log("  when the wave passes - both live in api/lambda/config.mjs.");
   }
 }
 

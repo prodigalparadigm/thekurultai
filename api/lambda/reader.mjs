@@ -80,7 +80,13 @@ export async function readForClause(client, doc, note = () => {}) {
     .map((f, i) => `[${i}]${f.naming ? " [may name]" : ""} ${f.path}\n${f.text}`)
     .join("\n\n");
 
-  const res = await client.messages.create({
+  /* parse(), NOT create(). create() returns a plain Message and never
+     populates parsed_output - so the first deployed version of this reader
+     called create(), got nothing back, and returned silently on every run
+     while still paying for the Haiku call. A rail that quietly does nothing
+     is worse than no rail, which is the entire reason this file exists. The
+     canary caught it; the harness now asserts it. */
+  const res = await client.messages.parse({
     model: READER_MODEL,
     max_tokens: 2000,
     system: INSTRUCTIONS,
@@ -89,7 +95,15 @@ export async function readForClause(client, doc, note = () => {}) {
   });
 
   const parsed = res.parsed_output;
-  if (!parsed) return [];
+  if (!parsed) {
+    /* Never silent. A reader that returns nothing because it is working and a
+       reader that returns nothing because it is broken look identical from
+       the outside, and the second one is how a safety layer becomes
+       decorative without anybody noticing. */
+    console.error("reader_no_output", res?.stop_reason || "unknown");
+    note("reader_no_output", { stop: res?.stop_reason || "unknown" });
+    return [];
+  }
   note("reader_done", {
     fields: fields.length,
     breaches: parsed.breaches.length,

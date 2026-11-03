@@ -725,6 +725,21 @@ head("The second reader, everything except the judgement");
     ceremony_audit: { rows: [{ process: "Claims intake, which we want to cut headcount on" }] },
   };
 
+  const readerSrc = readFileSync(join(ROOT, "lambda", "reader.mjs"), "utf8");
+  if (/client\.messages\.parse\(/.test(readerSrc) && !/client\.messages\.create\(/.test(readerSrc))
+    pass("the reader calls messages.parse(), the only call that returns parsed_output");
+  else fail("the reader calls messages.parse(), the only call that returns parsed_output",
+    "create() returns a plain Message - the reader would run, cost a call, and silently find nothing");
+  /* A reader that finds nothing because it is working and one that finds
+     nothing because it is broken look identical from outside. */
+  if (/reader_no_output/.test(readerSrc)) pass("a reader that gets no output says so");
+  else fail("a reader that gets no output says so",
+    "an empty parsed_output returns silently, which is how this layer goes decorative unnoticed");
+  if (/READER_MODEL = "claude-haiku/.test(readerSrc))
+    pass("the reader runs on Haiku, so it is cheap enough to never switch off");
+  else fail("the reader runs on Haiku, so it is cheap enough to never switch off",
+    "a dear reader is a reader that gets disabled the month the bill lands");
+
   const shown = scannableFields(doc).filter((f) => f.text.trim().length > 25);
   if (!shown.some((f) => f.path === "title")) pass("the reader is never shown the title");
   else fail("the reader is never shown the title", "the org's own name can trigger the rail");
@@ -738,29 +753,46 @@ head("The second reader, everything except the judgement");
     pass("an ordinary recommendation field is shown to the reader");
   else fail("an ordinary recommendation field is shown to the reader", "plan field missing");
 
-  /* A stub standing in for the model, so the plumbing is proved without a call. */
-  const stub = (breaches) => ({ messages: { create: async () => ({
-    parsed_output: { breaches }, usage: { input_tokens: 1, output_tokens: 1 },
-  }) } });
+  /* A stub standing in for the model, so the plumbing is proved without a
+     call. It exposes ONLY parse(), deliberately. The first version of this
+     stub offered create(), which is what the reader was calling - and
+     create() never populates parsed_output, so the reader returned silently
+     on every real run while these tests stayed green. The stub had encoded
+     the same misunderstanding as the code it was testing. Now a reader that
+     reaches for create() throws here instead of going quiet in production. */
+  const stub = (breaches) => ({ messages: {
+    parse: async () => ({ parsed_output: { breaches }, usage: { input_tokens: 1, output_tokens: 1 } }),
+    create: async () => { throw new Error("reader called messages.create(), which never returns parsed_output"); },
+  } });
+
+  /* Any of these can throw - the stub's create() does, on purpose - and a
+     harness that dies on a throw reports nothing at all, which is how a
+     reintroduced bug produced a stack trace instead of a named failure. */
+  const tryRead = async (what, client, document) => {
+    try { return await readForClause(client, document); }
+    catch (e) { fail(what, String(e.message).slice(0, 140)); return null; }
+  };
 
   const idOf = (path) => shown.findIndex((f) => f.path === path);
-  const hits = await readForClause(
+  const hits = await tryRead("a reader finding comes back shaped like a clause finding", 
     stub([{ id: idOf("plan.d30[0].what"), quote: "Bring the claims team down to eight by the end of Q1.", why: "headcount target" }]),
     doc);
-  if (hits.length === 1 && hits[0].field === "plan.d30[0].what")
+  if (hits === null) { /* tryRead already reported it; do not say it twice */ }
+  else if (hits.length === 1 && hits[0].field === "plan.d30[0].what")
     pass("a reader finding comes back shaped like a clause finding");
   else fail("a reader finding comes back shaped like a clause finding", JSON.stringify(hits));
-  if (hits[0] && hits[0].text && hits[0].pattern === "second reader")
+  if (hits && hits[0] && hits[0].text && hits[0].pattern === "second reader")
     pass("the finding names which layer caught it");
-  else fail("the finding names which layer caught it", JSON.stringify(hits[0]));
+  else fail("the finding names which layer caught it", JSON.stringify(hits?.[0] ?? null));
 
   /* The model is free to return an id for a field that does not exist. */
-  const bogus = await readForClause(stub([{ id: 999, quote: "x", why: "y" }]), doc);
-  if (!bogus.length) pass("an out-of-range id from the reader is discarded, not crashed on");
+  const bogus = await tryRead("an out-of-range id from the reader is discarded, not crashed on",
+    stub([{ id: 999, quote: "x", why: "y" }]), doc);
+  if (bogus && !bogus.length) pass("an out-of-range id from the reader is discarded, not crashed on");
   else fail("an out-of-range id from the reader is discarded, not crashed on", JSON.stringify(bogus));
 
-  const empty = await readForClause(stub([]), doc);
-  if (!empty.length) pass("a clean read returns nothing");
+  const empty = await tryRead("a clean read returns nothing", stub([]), doc);
+  if (empty && !empty.length) pass("a clean read returns nothing");
   else fail("a clean read returns nothing", JSON.stringify(empty));
 
   /* The asymmetry: this layer may add catches and must never subtract a
@@ -771,10 +803,6 @@ head("The second reader, everything except the judgement");
     pass("a reader that falls over does not fail the buyer's document");
   else fail("a reader that falls over does not fail the buyer's document",
     "readForClause is not inside a try/catch in the retry loop");
-  if (/READER_MODEL = "claude-haiku/.test(readFileSync(join(ROOT, "lambda", "reader.mjs"), "utf8")))
-    pass("the reader runs on Haiku, so it is cheap enough to never switch off");
-  else fail("the reader runs on Haiku, so it is cheap enough to never switch off",
-    "a dear reader is a reader that gets disabled the month the bill lands");
 }
 
 /* ---------------- is the ENGINE running this canon? ----------------

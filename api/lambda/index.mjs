@@ -92,13 +92,26 @@ function validate(payload) {
       return { error: "bad_slider", message: `Slider "${id}" must be a number from 0 to 100.` };
     intake.sliders[id] = Math.round(n);
   }
-  return { intake };
+  /* Returned BESIDE the intake, never inside it. The engine's behaviour must
+     not depend on this - John's Clause, the rails and the prompt are byte
+     for byte the same for a demonstration run - it exists only so the
+     finished record can say what the document was built from. Keeping it out
+     of `intake` means a future change that serializes the intake into a
+     prompt cannot accidentally tell the model it is being demonstrated. */
+  return { intake, demo: payload?.demo === true };
 }
 
 /* ---------- the generation itself ----------
    Runs in the worker invocation, not in the request, because a document takes
    minutes and API Gateway gives a request 30 seconds. */
-async function generate(intake, note) {
+/* `stage` exists because the page used to invent one. It ran five sentences
+   on a timer - "Sorting your processes...", "Writing the ninety days..." -
+   describing an order of work that does not happen: the document is ONE
+   model call returning one structured object, so there is no instant at
+   which the engine is provably doing the ceremony audit and not the staffing
+   map. Three boundaries are real, and these are they. If someone later splits
+   the call per engine, that is when more stages become truthful. */
+async function generate(intake, note, stage = () => {}) {
   const key = await apiKey();
   const ws = process.env.ANTHROPIC_WORKSPACE_ID;
   const client = new Anthropic({
@@ -123,6 +136,7 @@ async function generate(intake, note) {
   };
 
   for (let attempt = 0; attempt < 2; attempt++) {
+    await stage(attempt === 0 ? "writing" : "rewriting");
     /* Streamed, not awaited whole. At max_tokens this size the SDK refuses a
        non-streaming request outright - "Streaming is required for operations
        that may take longer than 10 minutes" - and that refusal is what the
@@ -155,6 +169,7 @@ async function generate(intake, note) {
     if (!res.parsed_output) throw Object.assign(new Error("unparsed"), { kind: "unparsed" });
 
     /* John's Clause, second line: the instructions are the first. */
+    await stage("checking");
     const intakeText = [intake.processes, intake.current_ai, intake.staffing,
                         intake.outcome_90, intake.company?.name, intake.company?.industry]
                         .filter(Boolean).join(" \n ");
@@ -192,16 +207,31 @@ export async function handler(event) {
      Not an HTTP request. Comes from this function invoking itself with
      InvocationType Event, so it is free to take minutes. */
   if (event?.kurultaiJob) {
-    const { id, intake } = event.kurultaiJob;
+    const { id, intake, demo } = event.kurultaiJob;
+    /* Best effort by design. A stage write that fails must never cost the
+       visitor the document it is only narrating, so this swallows its own
+       errors and the run carries on. */
+    const stage = async (name) => {
+      try {
+        await ddb.send(new UpdateCommand({
+          TableName: CONFIG.tableName,
+          Key: { pk: "job#" + id },
+          // "stage" is a DynamoDB reserved word, so it is aliased like status and usage.
+          UpdateExpression: "SET #g = :g",
+          ExpressionAttributeNames: { "#g": "stage" },
+          ExpressionAttributeValues: { ":g": name },
+        }));
+      } catch { /* the document matters; the label does not */ }
+    };
     try {
-      const { doc, usage, retried } = await generate(intake, note);
+      const { doc, usage, retried } = await generate(intake, note, stage);
       await ddb.send(new UpdateCommand({
         TableName: CONFIG.tableName,
         Key: { pk: "job#" + id },
         // "status" and "usage" are both DynamoDB reserved words.
-        UpdateExpression: "SET #s = :s, doc = :d, finished = :f, #u = :u",
-        ExpressionAttributeNames: { "#s": "status", "#u": "usage" },
-        ExpressionAttributeValues: { ":s": "done", ":d": JSON.stringify(doc), ":f": now(), ":u": usage },
+        UpdateExpression: "SET #s = :s, doc = :d, finished = :f, #u = :u, #m = :m",
+        ExpressionAttributeNames: { "#s": "status", "#u": "usage", "#m": "demo" },
+        ExpressionAttributeValues: { ":s": "done", ":d": JSON.stringify(doc), ":f": now(), ":u": usage, ":m": demo === true },
       }));
       note("run_done", { ...usage, retried, rows: doc.ceremony_audit?.rows?.length ?? 0 });
     } catch (e) {
@@ -274,10 +304,12 @@ export async function handler(event) {
     if (Number(r.Item.expires) && Number(r.Item.expires) < now())
       return J(404, { error: "expired", message: "That document has expired. Run it again." });
     if (r.Item.status === "done")
-      return J(200, { status: "done", document: JSON.parse(r.Item.doc) });
+      return J(200, { status: "done", document: JSON.parse(r.Item.doc), demo: r.Item.demo === true });
     if (r.Item.status === "failed")
       return J(200, { status: "failed", reason: r.Item.reason || "error" });
-    return J(200, { status: "running", since: r.Item.created });
+    /* Only what the worker wrote. No stage is sent until one is true. */
+    return J(200, { status: "running", since: r.Item.created,
+                    ...(r.Item.stage ? { stage: r.Item.stage } : {}) });
   }
 
   if (!path.endsWith("/run")) return J(404, { error: "not_found" });
@@ -335,7 +367,7 @@ export async function handler(event) {
     await lambda.send(new InvokeCommand({
       FunctionName: CONFIG.selfFunction,
       InvocationType: "Event",
-      Payload: Buffer.from(JSON.stringify({ kurultaiJob: { id, intake: v.intake } })),
+      Payload: Buffer.from(JSON.stringify({ kurultaiJob: { id, intake: v.intake, demo: v.demo } })),
     }));
   } catch (e) {
     console.error("enqueue_failed", e?.name);

@@ -101,6 +101,14 @@
 <div class="brief-grid">
 <div><h3>A little context.</h3><p>The positions need somewhere to land. The processes are the important part, and plain is better than tidy: they are what the ceremony audit works on.</p><p class="quiet-commitment"><strong>No layoff plans.</strong> The Kurultai does not produce headcount-reduction recommendations, ever. Moving the staffing slider never removes that commitment.</p></div>
 <div class="brief-fields">
+<div class="sample-offer">
+<p id="sample-offer-line">No time to type? <button class="text-button" type="button" id="load-sample">Try it with a sample company</button></p>
+<div id="sample-loaded" hidden>
+<p><strong>Filled in with Harbour Freight Lines</strong> &mdash; a 400-person regional logistics company we invented, with its four positions set. It is not a real organization, and the document it produces is a demonstration, not advice.</p>
+<p class="sample-choices"><a class="button secondary" id="sample-doc-link" href="editions/sample-harbour-freight.html">See the finished document</a> <button class="text-button" type="button" id="clear-sample">Clear the form and start fresh</button></p>
+<p class="small">The finished document is already written, so it opens straight away and costs nobody their turn at the engine. To watch it being written instead, convene the council below &mdash; it runs the same engine, with the same rules, and takes the same few minutes.</p>
+</div>
+</div>
 <label for="organization">Organization <span>(required)</span></label><input id="organization" name="organization" autocomplete="organization" maxlength="100" placeholder="Acme Freight" required>
 <label for="sector">Organization type <span>(required)</span></label><select id="sector" name="sector" required><option value="">Choose a type</option><option>Company</option><option>Nonprofit</option><option>Government or public body</option><option>Other organization</option></select>
 <label for="industry">Industry</label><input id="industry" name="industry" autocomplete="off" maxlength="100" placeholder="Regional logistics">
@@ -117,7 +125,43 @@
 </div>
 </div>
 </form>
-<div id="council-state" class="council-state" hidden tabindex="-1" aria-live="polite"><div class="council-marks" aria-hidden="true"><i></i><i></i><i></i><i></i></div><h3>The council deliberates.</h3><p id="council-line">Sorting your processes into ceremonial and instrumental.</p><p class="small">This takes a few minutes. Leave the tab open.</p></div>
+<div id="council-state" class="council-state" hidden tabindex="-1"><div class="council-marks" aria-hidden="true"><i></i><i></i><i></i><i></i></div><h3>The council deliberates.</h3><p id="council-line" aria-live="polite">This takes a few minutes. Leave the tab open.</p>
+<!-- The reading room. Static HTML, not written in by script, for the same
+     reason the engine previews are: a crawler that does not run JavaScript
+     should still find these words, and they are some of the plainest
+     statements of what the thing is for. app.js only moves between them. -->
+<div class="reading-room" id="reading-room" hidden>
+<p class="reading-room-head">While you wait &mdash; five things worth knowing about the document being written.</p>
+<div class="reading-cards">
+<article class="reading-card" data-card>
+<h4>Four engines, one document.</h4>
+<p>A <strong>ceremony audit</strong> sorts your processes into work judged by what it produces and work judged by how it is performed. A <strong>decision ledger</strong> turns every freed hour into a choice with a name and a date against it. A <strong>people arc</strong> runs from MyRunbook, where each person writes down what they actually do all day, to MyWork, where they and their manager decide what the job is now. A <strong>staffing map</strong> reads your people against five archetypes.</p>
+</article>
+<article class="reading-card" data-card>
+<h4>A freed hour with no owner is not a saving.</h4>
+<p>This is the part most strategy documents skip. Work gets faster, nobody decides where the time goes, and it is quietly absorbed &mdash; the same work, at the same pace, with the slack gone. So the ledger will not let a row stand without a named person and a date. A row with no owner is not a decision, it is a hope.</p>
+</article>
+<article class="reading-card" data-card>
+<h4>Named for the strategist, not the conqueror.</h4>
+<p>Sorghaghtani Beki cultivated political alliances, supported education, and helped bring M&ouml;ngke to power in 1251, as described in <a href="https://www.ebsco.com/research-starters/biography/sorghaghtani-beki">Timothy May's biography for EBSCO</a>. She never took the throne and raised four rulers. Our reading is a design principle: build the conditions for sound decisions, and leave the mythology out. <a href="patron.html">Why the Kurultai</a></p>
+</article>
+<article class="reading-card" data-card>
+<h4>It will not write your layoff plan.</h4>
+<p>Not at any slider setting, and not if you ask it directly. The rule is enforced twice: once in the engine's own instructions, and again by a separate check that reads the finished draft and stops it before it reaches you. The document may <em>name</em> what you asked for &mdash; it is allowed to tell you it declined &mdash; but it will not argue for fewer people. What the work frees up is a decision, and the ledger says whose.</p>
+</article>
+<article class="reading-card" data-card>
+<h4>When it arrives, argue with it.</h4>
+<p>This is a sketch built from four positions and a few paragraphs, written by a model that has never met your organization. It is meant to be marked up, contradicted, and handed to the person who knows why every exception exists. Every recommendation names the future outcome it controls, so you can test each one against that claim. The last section lists what the document knows it does not know. Start there.</p>
+</article>
+</div>
+<div class="reading-nav">
+<button class="text-button" type="button" data-card-prev>&larr; Back</button>
+<span class="reading-dots" id="reading-dots" aria-hidden="true"></span>
+<button class="text-button" type="button" data-card-next>Next &rarr;</button>
+</div>
+<p class="small" id="reading-position" aria-live="polite"></p>
+<p class="small">These cards say nothing about how far along your document is. The engine writes it in one pass, so there is no honest way to report progress &mdash; only to tell you when it is done.</p>
+</div></div>
 <div id="brief-result" class="brief-result" hidden tabindex="-1"></div>
 <noscript><p>The sliders work without JavaScript, but convening a council requires it. <a href="report.html">Read the sample document instead.</a></p></noscript>
 </div></section>

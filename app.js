@@ -19,6 +19,13 @@
 const KURULTAI_ENDPOINT = "https://mhzitp8tad.execute-api.us-east-1.amazonaws.com/run";
 
 const $ = (s) => document.querySelector(s);
+/* Used by the reading room as well as the document, so it is declared up
+   here: the reading room is built at load, and a const is not hoisted. */
+const el = (tag, props = {}, kids = []) => {
+  const n = Object.assign(document.createElement(tag), props);
+  for (const k of [].concat(kids)) if (k !== null && k !== undefined) n.append(k);
+  return n;
+};
 
 /* ---------------- the instrument ---------------- */
 const ranges = [...document.querySelectorAll('input[type="range"]')];
@@ -79,7 +86,153 @@ document.querySelectorAll("[data-preview]").forEach((btn) => btn.addEventListene
 }));
 
 /* ---------------- submit, then poll ---------------- */
+const POLL_CEILING_MS = 15 * 60 * 1000;
 const SLIDER_KEYS = { staffing: 'staffing', governance: 'data_governance', risk: 'risk_tolerance', investment: 'upfront_investment' };
+
+/* ---------------- the sample company ----------------
+   One cast, shared with QA. These are the values a visitor would TYPE, so the
+   demo goes through the same code path as any other intake - the industry
+   join, the slider inversion, validation, John's Clause, all of it. There is
+   no demo path through the engine.
+
+   The dial numbers are therefore the mirror of canon's, because the track is
+   drawn rtl and the submit handler sends `100 - value`: staffing reads 70
+   here and arrives at the engine as 30.
+
+   api/qa/harness.mjs rebuilds the payload from these values and fails unless
+   it is byte-for-byte the harness's own ordinary-intake fixture, so what the
+   demo shows and what QA tests cannot drift apart. */
+const DEMO = {
+  document: 'editions/sample-harbour-freight.html',
+  fields: {
+    organization: 'Harbour Freight Lines',
+    sector: 'Company',
+    industry: 'Regional logistics',
+    size: 'About 400',
+    regulated: '',
+    processes: 'Monthly close, which eats two days. Dispatch scheduling every morning on a whiteboard. Quarterly business reviews that take a week to assemble. RFP responses, two people for a week each time.',
+    current_ai: 'Two licences in marketing. A pilot nobody finished. IT has opinions.',
+    staffing_text: 'Four analysts, one of whom builds things nobody asked for. Ops lead has been here nineteen years and knows why every exception exists. Cannot hire engineers at our rates.',
+    priority: 'Stop losing two days a month to the close.',
+  },
+  dials: { staffing: 70, governance: 60, risk: 75, investment: 30 },
+};
+
+/* Set when the visitor loads the sample, cleared when they clear the form.
+   It rides the request, so a document built from invented data is marked as
+   one by the record itself and not only by this tab's memory. */
+let demo = false;
+
+/* ---------------- what the server says it is doing ----------------
+   Keyed to the stages api/lambda/index.mjs writes. Three, because three is
+   how many boundaries the engine really has. */
+const STAGES = {
+  writing: 'Writing your document. This is the long part.',
+  checking: 'Checking the draft against the cut line.',
+  rewriting: 'The safety check stopped the first draft, so it is being written again. This adds a couple of minutes.',
+};
+
+/* ---------------- the reading room ----------------
+   Something true to read while the engine works. The cards are static HTML
+   for the same reason the engine previews are: a crawler that does not run
+   JavaScript should still find the words, and these are some of the clearest
+   words on the site. This only moves between them.
+
+   It advances on a timer AND on a click, a swipe or an arrow key, and the
+   timer gives up as soon as the visitor steers - nobody wants the page
+   moving under their thumb. */
+const readingRoom = (() => {
+  const room = $('#reading-room');
+  const cards = room ? [...room.querySelectorAll('[data-card]')] : [];
+  const dots = $('#reading-dots');
+  let at = 0, timer = null, steered = false;
+
+  if (dots && cards.length) dots.replaceChildren(...cards.map(() => el('i', {})));
+
+  const show = (i) => {
+    at = (i + cards.length) % cards.length;
+    cards.forEach((c, n) => { c.hidden = n !== at; });
+    if (dots) [...dots.children].forEach((d, n) => d.classList.toggle('on', n === at));
+    $('#reading-position')?.replaceChildren(
+      document.createTextNode(`Card ${at + 1} of ${cards.length}`));
+  };
+  const go = (step, byHand) => {
+    if (byHand) { steered = true; clearInterval(timer); timer = null; }
+    show(at + step);
+  };
+
+  if (cards.length) {
+    room.querySelector('[data-card-next]')?.addEventListener('click', () => go(1, true));
+    room.querySelector('[data-card-prev]')?.addEventListener('click', () => go(-1, true));
+    room.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') { e.preventDefault(); go(1, true); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1, true); }
+    });
+    // a tap on the card itself, and a swipe, both advance
+    let x0 = null;
+    room.addEventListener('pointerdown', (e) => { x0 = e.clientX; });
+    room.addEventListener('pointerup', (e) => {
+      if (x0 === null) return;
+      const dx = e.clientX - x0; x0 = null;
+      if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1, true);
+      else if (e.target.closest('[data-card]')) go(1, true);
+    });
+  }
+
+  return {
+    start() {
+      if (!cards.length) return;
+      steered = false; show(0);
+      room.hidden = false;
+      clearInterval(timer);
+      timer = setInterval(() => { if (!steered) show(at + 1); }, 14000);
+    },
+    stop() { clearInterval(timer); timer = null; if (room) room.hidden = true; },
+  };
+})();
+
+/* ---------------- the sample company ----------------
+   Fills the instrument in so somebody can see what the thing produces
+   without composing four paragraphs about their own employer first. */
+const sampleOffer = $('#sample-loaded');
+function setDials(values) {
+  ranges.forEach((r) => {
+    if (values[r.id] !== undefined) r.value = String(values[r.id]);
+    describe(r);
+  });
+}
+$('#load-sample')?.addEventListener('click', () => {
+  for (const [id, value] of Object.entries(DEMO.fields)) {
+    const field = document.getElementById(id);
+    if (field) field.value = value;
+  }
+  setDials(DEMO.dials);
+  demo = true;
+  if (sampleOffer) sampleOffer.hidden = false;
+  $('#sample-offer-line')?.setAttribute('hidden', '');
+  $('#form-error').hidden = true;
+  /* Send them to the top of the instrument, not to the submit button: the
+     four positions are the part worth looking at, and they have just been
+     moved. */
+  document.getElementById('instrument')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  $('#sample-doc-link')?.focus();
+});
+/* Clearing the form is what drops the flag. Editing a field does not: a
+   visitor who changes two sentences of the sample and runs it is still
+   looking at a document mostly built from data we invented, and it should
+   still say so. */
+$('#clear-sample')?.addEventListener('click', () => {
+  for (const id of Object.keys(DEMO.fields)) {
+    const field = document.getElementById(id);
+    if (field) field.value = '';
+  }
+  setDials({ staffing: 50, governance: 50, risk: 50, investment: 50 });
+  demo = false;
+  if (sampleOffer) sampleOffer.hidden = true;
+  $('#sample-offer-line')?.removeAttribute('hidden');
+  $('#form-error').hidden = true;
+  $('#organization')?.focus();
+});
 
 const form = $('#strategy-form');
 form?.addEventListener('submit', async (e) => {
@@ -127,15 +280,19 @@ form?.addEventListener('submit', async (e) => {
        all four sliders backwards. Do not "simplify" this line. */
     sliders: Object.fromEntries(ranges.map((r) => [SLIDER_KEYS[r.id], 100 - Number(r.value)])),
   };
+  /* Not a mode. The engine treats it as any other run; this only travels so
+     the finished document can say what it was built from. */
+  if (demo) body.demo = true;
 
   const waiting = $('#council-state');
-  $('#council-line').textContent = 'Sorting your processes into ceremonial and instrumental.';
+  $('#council-line').textContent = 'This takes a few minutes. Leave the tab open.';
   $('#brief-result').hidden = true;
   waiting.hidden = false;
   waiting.focus();
   $('#submit-brief').disabled = true;
 
   const stop = (message) => {
+    readingRoom.stop();
     waiting.hidden = true;
     $('#submit-brief').disabled = false;
     $('#form-error').hidden = false;
@@ -163,21 +320,28 @@ form?.addEventListener('submit', async (e) => {
     id = j.id;
   } catch (err) { stop(err.message); return; }
 
-  /* Say something true about the wait rather than spinning silently. Polling
-     costs no model tokens, so it never touches the daily spend cap. */
-  const lines = [
-    'Sorting your processes into ceremonial and instrumental.',
-    'Working out where the freed capacity lands, and who decides.',
-    'Reading your staffing against the five archetypes.',
-    'Writing the ninety days.',
-    'Still working. A long document takes a few minutes.',
-  ];
-  let tick = 0;
+  /* There used to be five sentences on a timer here - "Sorting your
+     processes...", "Writing the ninety days..." - advancing every few
+     seconds. They described an order of work that does not exist: the engine
+     makes ONE model call that returns the whole document, so there is no
+     moment at which it is provably doing the ceremony audit and not the
+     staffing map. The page was narrating a process it could not see.
+     The wait is filled by the reading room now, which claims nothing about
+     progress, and #council-line carries only stages the server actually
+     reports. */
   const started = Date.now();
+  readingRoom.start();
   const poll = setInterval(async () => {
-    const mins = Math.floor((Date.now() - started) / 60000);
-    $('#council-line').textContent = lines[Math.min(tick++, lines.length - 1)]
-      + (mins >= 3 ? ' Still going; a long one.' : '');
+    /* The ceiling goes FIRST, above every early return. It used to sit inside
+       the "still running" branch, below the guard that skips a 429 or a body
+       with no status - so a job that died without ever writing a status was
+       skipped by that guard on every tick and never reached the ceiling at
+       all. The page waited forever. bus #597. */
+    if (Date.now() - started > POLL_CEILING_MS) {
+      clearInterval(poll);
+      stop('This one has been going for fifteen minutes, which means something went wrong rather than slowly. Try again, or write to kathleen@prodigalparadigm.com.');
+      return;
+    }
     let j, r;
     try {
       r = await fetch(`${KURULTAI_ENDPOINT}?id=${encodeURIComponent(id)}`);
@@ -198,16 +362,21 @@ form?.addEventListener('submit', async (e) => {
     }
     if (r.status === 429 || !j || typeof j.status !== 'string') return;
     if (j.status === 'running') {
-      /* And an overall ceiling, for a job that dies without writing a status
-         at all - a timeout or an out-of-memory kill. */
-      if (Date.now() - started > 15 * 60 * 1000) {
-        clearInterval(poll);
-        stop('This one has been going for fifteen minutes, which means something went wrong rather than slowly. Try again, or write to kathleen@prodigalparadigm.com.');
-      }
+      /* Only what the server actually wrote. The engine records three real
+         boundaries - the model call, the safety check, and the rewrite that
+         a stopped draft triggers - and nothing here invents a fourth. An
+         unrecognised stage prints nothing rather than a guess. */
+      const said = STAGES[j.stage];
+      if (said) $('#council-line').textContent = said;
       return;
     }
     clearInterval(poll);
-    if (j.status === 'done') { waiting.hidden = true; renderDocument(j.document); return; }
+    readingRoom.stop();
+    if (j.status === 'done') {
+      waiting.hidden = true;
+      renderDocument(j.document, { demo: demo || j.demo === true });
+      return;
+    }
     const reasons = {
       /* The old wording told the buyer the draft "kept recommending" cuts.
          A grant fund that failed because its own initials matched the guard
@@ -222,11 +391,6 @@ form?.addEventListener('submit', async (e) => {
 });
 
 /* ---------------- the document ---------------- */
-const el = (tag, props = {}, kids = []) => {
-  const n = Object.assign(document.createElement(tag), props);
-  for (const k of [].concat(kids)) if (k !== null && k !== undefined) n.append(k);
-  return n;
-};
 const TERMS = {
   myrunbook: "MyRunbook: each person writes down what they actually do all day, in their own words. It is the only way to see which parts of a job hand off and which cannot.",
   mywork: "MyWork: what follows MyRunbook. Having seen the work on a page, the person and their manager decide what the job is now - what it keeps, what it sheds, what it gains.",
@@ -240,6 +404,15 @@ const termLine = (label, id, text) => el('p', {}, [
 ]);
 
 const strongLine = (label, text) => el('p', {}, [el('strong', { textContent: label }), ' ' + String(text ?? '')]);
+
+/* A row the model left entirely blank renders as an empty stripe in a table,
+   which reads as a fault in the document rather than in the draft. The
+   Harbour Freight sample came back with a fifth people-arc rung whose rung,
+   meaning and occupant were all empty strings. Drop rows with nothing in
+   them at all; keep partly-filled ones, because a missing cell is itself
+   information and the reader should see it. */
+const filled = (rows, keys) => (rows || []).filter(
+  (r) => keys.some((k) => String(r?.[k] ?? '').trim()));
 
 function table(cols, rows) {
   return el('table', {}, [
@@ -286,31 +459,57 @@ function engine(label, title, kids) {
   ]);
 }
 
-function renderDocument(d) {
-  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+function renderDocument(d, opts = {}) {
+  const isDemo = Boolean(opts.demo);
+  /* The pre-rendered sample passes the date it was actually generated. A
+     static page that printed new Date() would claim to have been written on
+     whatever morning somebody happened to open it. */
+  const today = opts.date
+    || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const main = $('#main');
   document.body.classList.add('report-page');
 
+  /* The honesty rail. A document built from a company we invented has to say
+     so where it cannot be missed or scrolled past, and it has to survive
+     print and PDF - somebody will send this to a colleague, and the colleague
+     will not have seen the button that made it. So: top of the page, inside
+     the printed area, not in the controls strip that print hides. */
+  const banner = !isDemo ? null : el('aside', { className: 'demo-banner', role: 'note' }, [
+    el('strong', { textContent: 'Built from sample data \u2014 a demonstration, not advice.' }),
+    el('p', { textContent: 'Harbour Freight Lines is a company we made up, to show what the instrument returns. Nothing here describes a real organization, and none of it is advice for yours. Put your own work in and the document changes completely.' }),
+  ]);
+
   const controls = el('div', { className: 'report-controls no-print' }, [
-    el('p', { textContent: 'A QUICK sketch, built from what you typed and nothing else. The full document is built against your own filings, with every claim sourced.' }),
+    el('p', { textContent: isDemo
+      ? 'A QUICK sketch, built from the sample intake and nothing else. Your own document is built the same way, from what you type. The full document is built against your own filings, with every claim sourced.'
+      : 'A QUICK sketch, built from what you typed and nothing else. The full document is built against your own filings, with every claim sourced.' }),
     el('div', {}, [
       el('button', { className: 'button', type: 'button', textContent: 'Print or save as PDF', onclick: () => window.print() }),
-      el('button', { className: 'text-button', type: 'button', textContent: 'Start again', onclick: () => location.reload() }),
+      /* On the pre-rendered sample there is nothing to start again, so the
+         second control goes back to the instrument instead of reloading the
+         same fixed document. */
+      opts.restartHref
+        ? el('a', { className: 'text-button', href: opts.restartHref, textContent: 'Put your own work in' })
+        : el('button', { className: 'text-button', type: 'button', textContent: 'Start again', onclick: () => location.reload() }),
     ]),
   ]);
 
   const doc = el('article', { className: 'document' });
   doc.append(el('header', {}, [
     el('span', {}, ['The Kurultai', el('br'), 'A Prodigal Paradigm product']),
-    el('span', {}, ['QUICK sketch', el('br'), today]),
+    el('span', {}, [isDemo ? 'QUICK sketch \u00b7 sample data' : 'QUICK sketch', el('br'), today]),
   ]));
   doc.append(el('h1', { textContent: d.title }));
   doc.append(el('p', { className: 'doc-intro', textContent: d.lead }));
 
   const meta = el('dl', { className: 'doc-meta' });
   const metaRow = (k, v) => meta.append(el('div', {}, [el('dt', { textContent: k }), el('dd', { textContent: v })]));
-  metaRow('Prepared from', 'Your four positions and your own description of the work');
-  metaRow('Document status', 'A sketch. Nothing here has been checked against your filings.');
+  metaRow('Prepared from', isDemo
+    ? 'A sample company we invented, and its four positions. Not a real organization, and not your data.'
+    : 'Your four positions and your own description of the work');
+  metaRow('Document status', isDemo
+    ? 'A demonstration. The organization does not exist.'
+    : 'A sketch. Nothing here has been checked against your filings.');
   /* `stage` is meant to be a short label. If the model writes a sentence
      instead, print it as it stands rather than wrapping it in a phrase that
      turns it into nonsense. */
@@ -318,7 +517,9 @@ function renderDocument(d) {
   metaRow('Scope', !stage ? 'As described in the brief'
     : stage.length <= 28 ? `An organization at the ${stage.toLowerCase()} stage`
     : stage);
-  metaRow('Evidence status', 'Self-reported. No outside research was performed.');
+  metaRow('Evidence status', isDemo
+    ? 'None, and none is possible. The sample company has no filings because it has no existence.'
+    : 'Self-reported. No outside research was performed.');
   doc.append(meta);
 
   /* How the four placements read back. */
@@ -342,13 +543,19 @@ function renderDocument(d) {
   ]);
 
   group.append(engine('Engine one', 'The ceremony audit', [
-    table(['Process', 'Reading', 'What follows'], (d.ceremony_audit?.rows || []).map((r) => {
+    table(['Process', 'Reading', 'What follows'], filled(d.ceremony_audit?.rows, ['process', 'classification', 'why', 'recommendation']).map((r) => {
       const reading = el('td');
       reading.setAttribute('data-col', 'Reading');
       reading.append(el('strong', { textContent: r.classification }), el('br'), String(r.why ?? ''));
       const follows = el('td');
       follows.setAttribute('data-col', 'What follows');
-      if (r.recommendation) follows.append(recBlock(r.recommendation));
+      /* recBlock is shaped for the 30/60/90 rows ({what, why, controls,
+         evidence}). A ceremony row's recommendation is a STRING, and its
+         controls sit beside it on the row - so passing the string here
+         printed an empty paragraph and a bare "Controls:" label, and
+         dropped both the recommendation and the acceptance evidence. */
+      if (r.recommendation) follows.append(el('p', { textContent: r.recommendation }));
+      if (r.controls) follows.append(strongLine('Controls:', r.controls));
       if (r.management_conversation) follows.append(strongLine('For the management conversation:', r.management_conversation));
       return el('tr', {}, [cell(r.process, 'Process'), reading, follows]);
     })),
@@ -357,7 +564,7 @@ function renderDocument(d) {
   group.append(engine('Engine two', 'The decision ledger', [
     el('p', { textContent: d.decision_ledger?.note || '' }),
     table(['Capacity freed', 'The decision', 'Lands in', 'Owned by', 'By when'],
-      (d.decision_ledger?.rows || []).map((r) => el('tr', {}, [
+      filled(d.decision_ledger?.rows, ['freed_capacity', 'decision', 'choice', 'assigned_role', 'by_when']).map((r) => el('tr', {}, [
         cell(r.freed_capacity, 'Capacity freed'), cell(r.decision, 'The decision'),
         cell(r.choice, 'Lands in'), cell(r.assigned_role, 'Owned by'), cell(r.by_when, 'By when'),
       ]))),
@@ -371,7 +578,7 @@ function renderDocument(d) {
     termLine('MyRunbook', 'myrunbook', d.people_arc?.runbook),
     termLine('MyWork', 'mywork', d.people_arc?.mywork),
     table(['Rung', 'What it means here', 'Who is standing on it'],
-      (d.people_arc?.ladder || []).map((r) => el('tr', {}, [
+      filled(d.people_arc?.ladder, ['rung', 'means', 'who']).map((r) => el('tr', {}, [
         cell(r.rung, 'Rung'), cell(r.means, 'What it means here'), cell(r.who, 'Who is standing on it'),
       ]))),
     d.people_arc?.note ? el('p', { textContent: d.people_arc.note }) : null,
@@ -385,7 +592,7 @@ function renderDocument(d) {
   group.append(engine('Engine four', 'The staffing map', [
     strongLine('Stage.', d.staffing_map?.stage),
     table(['Archetype', 'What you need it for', 'Where it comes from', 'Why'],
-      (d.staffing_map?.mix || []).map((r) => el('tr', {}, [
+      filled(d.staffing_map?.mix, ['archetype', 'need', 'source', 'why']).map((r) => el('tr', {}, [
         archetypeCell(r.archetype, 'Archetype'), cell(r.need, 'What you need it for'),
         cell(r.source, 'Where it comes from'), cell(r.why, 'Why'),
       ]))),
@@ -397,7 +604,7 @@ function renderDocument(d) {
   /* Ninety days. */
   const plan = el('section', { className: 'doc-section' }, el('h2', { textContent: 'The ninety days' }));
   for (const [k, title] of [['d30', 'By day 30'], ['d60', 'By day 60'], ['d90', 'By day 90']]) {
-    const rows = d.plan?.[k] || [];
+    const rows = filled(d.plan?.[k], ['what', 'why', 'controls', 'evidence']);
     if (!rows.length) continue;
     plan.append(el('div', { className: 'engine-section' }, [
       el('h3', { textContent: title }),
@@ -438,10 +645,10 @@ function renderDocument(d) {
 
   doc.append(el('div', { className: 'doc-foot' }, [
     el('span', { textContent: 'The Kurultai · thekurultai.com' }),
-    el('span', { textContent: 'QUICK sketch · ' + today }),
+    el('span', { textContent: (isDemo ? 'QUICK sketch · sample data · ' : 'QUICK sketch · ') + today }),
   ]));
 
-  main.replaceChildren(controls, doc);
+  main.replaceChildren(...[banner, controls, doc].filter(Boolean));
   main.setAttribute('tabindex', '-1');
   main.focus();
   window.scrollTo(0, 0);

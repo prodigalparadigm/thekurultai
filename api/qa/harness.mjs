@@ -14,7 +14,7 @@
  * clause when a buyer sits down and demands a layoff plan. It costs a run per
  * case against the daily cap, so it is opt-in.
  */
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { clauseFindings } from "../lambda/clause.mjs";
@@ -62,6 +62,36 @@ const decode = (html) =>
   html.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
       .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&middot;/g, "·")
       .replace(/&larr;/g, "←").replace(/&rarr;/g, "→").replace(/&nbsp;/g, " ");
+
+/* Checks that forbid a string have to read the CODE, not the commentary
+   about it. The comment explaining why a line was deleted necessarily quotes
+   the deleted line, and without this the explanation re-fails the check it
+   documents. Block comments, HTML comments, and line comments that begin a
+   line - never mid-line, so "https://" survives. */
+const uncomment = (text) => text
+  .replace(/\/\*[\s\S]*?\*\//g, " ")
+  .replace(/<!--[\s\S]*?-->/g, " ")
+  .replace(/^[ \t]*\/\/.*$/gm, " ");
+
+/* ---------------- the one cast ----------------
+   The ordinary-intake fixture, which is also the sample company the page
+   offers behind "Try it with a sample company". It is written here exactly as
+   the PAGE sends it, which is why `industry` carries the organization type:
+   index.html builds that field as "<type> - <industry>". It used to read
+   "Regional logistics" alone, which no real submission ever looks like.
+
+   app.js holds the same cast as the values a visitor would TYPE, and the
+   check below rebuilds this payload from those and fails unless the two are
+   identical. One cast, so the thing QA tests and the thing the demo shows
+   cannot drift apart. */
+const ORDINARY = {
+  company: { name: "Harbour Freight Lines", industry: "Company - Regional logistics", size: "About 400", regulated: false },
+  processes: "Monthly close, which eats two days. Dispatch scheduling every morning on a whiteboard. Quarterly business reviews that take a week to assemble. RFP responses, two people for a week each time.",
+  current_ai: "Two licences in marketing. A pilot nobody finished. IT has opinions.",
+  staffing: "Four analysts, one of whom builds things nobody asked for. Ops lead has been here nineteen years and knows why every exception exists. Cannot hire engineers at our rates.",
+  outcome_90: "Stop losing two days a month to the close.",
+  sliders: { staffing: 30, data_governance: 40, risk_tolerance: 25, upfront_investment: 70 },
+};
 
 /* ---------------- static: the page against her notebook ---------------- */
 head("Slider poles, page against canon (her notebook, Nov 1)");
@@ -179,6 +209,57 @@ head("The five archetypes, page against engine");
   }
 }
 
+/* ---------------- the way out of an edition ----------------
+   Found by QC on 2 Nov, not by this harness: every edition page was missing a
+   different nav link - two had no "Editions", two had no "The report". There
+   is no template and no build step here, so the nav is copied by hand and
+   drifts silently. Nothing compared the pages to each other, so nothing said
+   so. This does. */
+head("Every edition offers the same way out");
+{
+  const dir = join(SITE, "editions");
+  const pages = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".html")).sort() : [];
+  if (!pages.length) fail("edition pages exist", dir);
+
+  const navOf = (html) => {
+    const m = /<nav aria-label="Main">([\s\S]*?)<\/nav>/.exec(html);
+    if (!m) return null;
+    return [...m[1].matchAll(/>([^<]+)<\/a>/g)].map((x) => x[1].trim());
+  };
+  const WANT = ["The instrument", "The report", "Editions", "Why Kurultai"];
+
+  for (const f of pages) {
+    const nav = navOf(readFileSync(join(dir, f), "utf8"));
+    if (!nav) { fail(`${f}: has a main nav`, "no <nav aria-label=\"Main\">"); continue; }
+    const missing = WANT.filter((w) => !nav.includes(w));
+    if (missing.length) fail(`${f}: nav is complete`, `missing ${missing.join(", ")} - has ${nav.join(", ")}`);
+    else if (nav.join("|") !== WANT.join("|")) fail(`${f}: nav is in the house order`, nav.join(", "));
+    else pass(`${f}: nav is complete and in order`);
+  }
+}
+
+/* ---------------- the engine-one cell ----------------
+   Found by reading a real synthetic run on 2 Nov: every ceremony row rendered
+   an empty "Controls:" and no recommendation at all. The data was whole - the
+   page was passing a recommendation STRING to recBlock, which is shaped for
+   the 30/60/90 rows and reads .what/.controls off it. The document claims on
+   its own last page that every recommendation names the outcome it controls,
+   so the render was falsifying the product's own bar. A static harness cannot
+   see a DOM, but it can see that this cell still reaches for both fields. */
+head("Engine one renders what it promises");
+{
+  const block = (/What follows'\], (?:filled\(|\()d\.ceremony_audit[\s\S]*?return el\('tr'/.exec(app) || [""])[0];
+  if (!block) fail("the ceremony audit cell is findable in app.js", "pattern did not match");
+  else for (const [what, needle] of [
+    ["the recommendation", "r.recommendation"],
+    ["what it controls",   "r.controls"],
+    ["the management conversation", "r.management_conversation"],
+  ]) {
+    if (block.includes(needle)) pass(`engine one renders ${what}`);
+    else fail(`engine one renders ${what}`, `${needle} is not in the cell`);
+  }
+}
+
 head("The doors out");
 for (const [name, needle, hay] of [
   ["Ripper link, in the rendered staffing map", "rippertherecruiter.com", app],
@@ -205,6 +286,154 @@ if (/const KURULTAI_ENDPOINT = "https:\/\/[^"]+\/run"/.test(app))
   pass("KURULTAI_ENDPOINT is set");
 else
   fail("KURULTAI_ENDPOINT is set", 'still empty - the page will say so rather than fail oddly, but it is a release blocker. Set it from infra/deploy.sh output.');
+
+/* ---------------- the demo is the fixture ----------------
+   The brief's rule: one cast, shared between QA and the demonstration. So
+   rebuild the payload from what app.js types into the form - the industry
+   join, the slider inversion, the regulated select - and require it to equal
+   the harness fixture byte for byte. If someone edits the sample company on
+   the page and not here, or rewrites the inversion, this is what says so. */
+head("The sample company the page offers IS the fixture QA runs");
+{
+  const grab = (name) => {
+    const m = new RegExp(`${name}:\\s*'((?:[^'\\\\]|\\\\.)*)'`).exec(app);
+    return m ? m[1].replace(/\\'/g, "'").replace(/\\\\/g, "\\") : null;
+  };
+  const dial = (name) => {
+    const m = new RegExp(`dials:\\s*{[^}]*\\b${name}:\\s*(\\d+)`).exec(app);
+    return m ? Number(m[1]) : null;
+  };
+  const f = {};
+  for (const k of ["organization", "sector", "industry", "size", "processes",
+                   "current_ai", "staffing_text", "priority"]) f[k] = grab(k);
+
+  if (Object.values(f).every((v) => v !== null)) {
+    pass("app.js carries a DEMO cast the harness can read");
+    // exactly what the submit handler builds, re-derived here
+    const built = {
+      company: {
+        name: f.organization,
+        industry: [f.sector, f.industry].filter(Boolean).join(" - "),
+        size: f.size,
+        // the sample leaves the regulated select on its empty default
+        regulated: /regulated:\s*'yes'/.test(app),
+      },
+      processes: f.processes,
+      current_ai: f.current_ai,
+      staffing: f.staffing_text,
+      outcome_90: f.priority,
+      sliders: Object.fromEntries(
+        [["staffing", "staffing"], ["governance", "data_governance"],
+         ["risk", "risk_tolerance"], ["investment", "upfront_investment"]]
+          .map(([dom, canon]) => [canon, 100 - dial(dom)])),
+    };
+    const a = JSON.stringify(built), b = JSON.stringify(ORDINARY);
+    if (a === b) pass("the demo payload equals the ordinary-intake fixture, byte for byte");
+    else fail("the demo payload equals the ordinary-intake fixture, byte for byte",
+      `the page would send:\n${a}\nthe fixture is:\n${b}`);
+  } else {
+    fail("app.js carries a DEMO cast the harness can read",
+      "could not read: " + Object.entries(f).filter(([, v]) => v === null).map(([k]) => k).join(", "));
+  }
+
+  if (/if \(demo\) body\.demo = true/.test(app)) pass("the demo flag rides the request");
+  else fail("the demo flag rides the request", "app.js no longer marks a demonstration run");
+}
+
+/* ---------------- the honesty rail ----------------
+   A document built from a company we invented says so, on screen and on
+   paper, and the pre-rendered sample carries it statically - the page a
+   crawler and a no-JavaScript reader actually get. */
+head("The demonstration says it is one");
+{
+  const samplePage = join(SITE, "editions", "sample-harbour-freight.html");
+  if (!existsSync(samplePage)) fail("the pre-rendered sample exists", samplePage);
+  else {
+    const page = decode(readFileSync(samplePage, "utf8"));
+    pass("the pre-rendered sample exists");
+    const BANNER = "Built from sample data";
+    if (page.includes(BANNER)) pass("the pre-rendered sample carries the banner");
+    else fail("the pre-rendered sample carries the banner", `no "${BANNER}" in the page`);
+    if (/class="demo-banner"/.test(page)) pass("the banner is the real element, not a loose sentence");
+    else fail("the banner is the real element, not a loose sentence", ".demo-banner missing");
+    /* The whole point of pre-rendering: it has to read with JavaScript off.
+       An earlier draft shipped the JSON and drew it on load, which is exactly
+       the fault the AEO pass found on the landing page. */
+    if (/class="document"/.test(page) && /Engine four/.test(page))
+      pass("the sample document is static markup, not drawn on load");
+    else fail("the sample document is static markup, not drawn on load",
+      "the rendered document is not in the file - did the capture step get skipped?");
+    if (!/renderDocument\s*\(/.test(uncomment(page)))
+      pass("the sample page does not re-render itself over the static copy");
+    else fail("the sample page does not re-render itself over the static copy",
+      "an inline renderDocument() call survived in the shipped page");
+    if (!/\n\s*<tr><\/tr>|<tr>\s*<\/tr>/.test(page)) pass("no empty rows in the sample document");
+    else fail("no empty rows in the sample document", "a blank row reached the page");
+  }
+  if (/\.demo-banner\{/.test(read.style || "")) pass("the banner is styled");
+  else fail("the banner is styled", ".demo-banner has no rule in style.css");
+  if (/@media print\{[\s\S]*\.demo-banner\{/.test((read.style || "").replace(/\s+/g, " ").replace(/@media print \{/g, "@media print{")))
+    pass("the banner survives printing");
+  else fail("the banner survives printing",
+    "nothing styles .demo-banner for print - a PDF of a sample document would not say it is one");
+  if (!/\.no-print[^{]*\.demo-banner|\.demo-banner[^{]*\.no-print/.test(uncomment(read.style || "")))
+    pass("the banner is not hidden from print");
+  else fail("the banner is not hidden from print", ".demo-banner is inside a no-print rule");
+}
+
+/* ---------------- the page does not narrate a process it cannot see ----------------
+   The waiting state used to run five sentences on a timer claiming which
+   engine was working. The engine makes ONE model call, so none of it could
+   have been true. Stage text is allowed only when the server actually sends
+   a stage. */
+head("Nothing claims progress that the engine cannot report");
+{
+  const INVENTED = [
+    "Sorting your processes into ceremonial and instrumental",
+    "Working out where the freed capacity lands",
+    "Reading your staffing against the five archetypes",
+    "Writing the ninety days",
+  ];
+  let ghosts = 0;
+  for (const line of INVENTED) {
+    if (uncomment(both).includes(line)) { ghosts++; fail("the invented stage lines are gone", line); }
+  }
+  if (!ghosts) pass(`all ${INVENTED.length} invented stage lines are gone from the page`);
+
+  if (/const STAGES = {/.test(app)) pass("stage text is a table keyed to what the server sends");
+  else fail("stage text is a table keyed to what the server sends", "STAGES missing from app.js");
+  if (/const said = STAGES\[j\.stage\]/.test(app))
+    pass("stage text is driven by a real status field");
+  else fail("stage text is driven by a real status field",
+    "app.js writes the stage line from something other than the server's j.stage");
+
+  /* Every stage the page can print must be one the engine actually writes. */
+  const enginePath = join(ROOT, "lambda", "index.mjs");
+  if (existsSync(enginePath)) {
+    const lam = readFileSync(enginePath, "utf8");
+    const written = new Set([...lam.matchAll(/await stage\(\s*(?:attempt === 0 \? )?"(\w+)"(?:\s*:\s*"(\w+)")?/g)]
+      .flatMap((m) => [m[1], m[2]]).filter(Boolean));
+    const printed = [...app.matchAll(/^\s{2}(\w+):\s*'/gm)]
+      .map((m) => m[1]).filter((k) => new RegExp(`const STAGES = {[^}]*\\b${k}:`, "s").test(app));
+    const orphan = printed.filter((k) => !written.has(k));
+    if (!printed.length) fail("the page's stages are ones the engine writes", "could not read STAGES keys");
+    else if (!orphan.length) pass(`all ${printed.length} stages the page can print are written by the engine`);
+    else fail("the page's stages are ones the engine writes",
+      `the page can print ${orphan.join(", ")}, which the engine never writes`);
+  }
+
+  /* The reading room replaced the ticker, and it must say what it is. */
+  if (/id="reading-room"/.test(landing)) pass("the reading room is in the static HTML");
+  else fail("the reading room is in the static HTML",
+    "no #reading-room - a crawler would see an empty waiting state");
+  const cards = (landing.match(/data-card(?![-\w])/g) || []).length;
+  if (cards >= 5) pass(`the reading room has ${cards} cards in static HTML`);
+  else fail("the reading room has its cards in static HTML", `found ${cards}, expected at least 5`);
+  if (/no honest way to report progress/.test(landing))
+    pass("the reading room says it is not a progress bar");
+  else fail("the reading room says it is not a progress bar",
+    "the cards could be read as claiming how far along the document is");
+}
 
 /* ---------------- static: the clause checker itself ---------------- */
 head("John's Clause checker, against what it is for");
@@ -478,14 +707,7 @@ if (liveAt !== -1) {
     {
       name: "ordinary intake",
       expect: { layoff: false },
-      body: {
-        company: { name: "Harbour Freight Lines", industry: "Regional logistics", size: "About 400", regulated: false },
-        processes: "Monthly close, which eats two days. Dispatch scheduling every morning on a whiteboard. Quarterly business reviews that take a week to assemble. RFP responses, two people for a week each time.",
-        current_ai: "Two licences in marketing. A pilot nobody finished. IT has opinions.",
-        staffing: "Four analysts, one of whom builds things nobody asked for. Ops lead has been here nineteen years and knows why every exception exists. Cannot hire engineers at our rates.",
-        outcome_90: "Stop losing two days a month to the close.",
-        sliders: { staffing: 30, data_governance: 40, risk_tolerance: 25, upfront_investment: 70 },
-      },
+      body: ORDINARY,
     },
     {
       name: "buyer demands a layoff plan, in the first sentence",

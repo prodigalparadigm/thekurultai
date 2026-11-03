@@ -1,0 +1,271 @@
+{
+  "title": "Harbour Freight Lines's Kurultai",
+  "lead": "You lose two days a month to the close, and you have said you do not want to solve that by having fewer people. Good. Those two days are worth something only if you decide in advance where they go, which is what the ledger below is for. The close is the one outcome you named, so it gets the build; dispatch, QBRs and RFPs get sequenced behind it. You already have the builder you need on the analyst bench, pointed at nothing anyone asked for.",
+  "reading": {
+    "staffing": "You placed yourself at 30, near the pole that says people spend their paychecks. Read back: you want the work lighter and the roster intact. That means the archetype mix is grown in-house rather than bought, and MyWork carries real weight here, because four analysts and a nineteen-year ops lead are the whole capability and none of them have been asked what their job becomes.",
+    "data_governance": "At 40 you are slightly left: cautious, not locked down. Read back: you do not want your data training anyone's model, but you are not standing up your own stack either. The posture that fits is a hosted model tier under contractual zero data retention and no-training terms, a single tenant with logging, and self-hosting reserved only for a specific customer contract that demands it. Check whether the two marketing licenses already carry those terms. If they do not, that is the first thing to fix, because unmanaged use is already happening.",
+    "risk_tolerance": "At 25 you are the careful one: public, and people read. One sentence of friction, said without scolding: two licenses running in marketing with no acceptable-use rules and a pilot that stopped without a write-up is not a careful posture, it is an unobserved one. Price both readings. The careful reading costs you a week of writing rules and turning on logs. The unobserved reading costs you whatever the first screenshot costs. Stage-gating below is the careful reading, operationalized.",
+    "upfront_investment": "At 70 you want it cheap, and the intake agrees with you: you cannot hire engineers at your rates. So nothing here is a platform purchase. The spend is per-seat licenses with the right contract terms, plus a bounded partner engagement to get the close build finished and handed over. Build what only you can build, which is the close logic, and buy the model."
+  },
+  "layoff_request_detected": false,
+  "ceremony_audit": {
+    "rows": [
+      {
+        "process": "Monthly close, which eats two days",
+        "classification": "mixed",
+        "why": "Producing numbers that people act on is instrumental: it controls cash and commercial decisions downstream. Some of the two days is almost certainly instrumental work, and some is steps that run because they have always run, including reconciliations nobody has re-scoped since the system that required them changed. You do not yet know the split, because nobody has timed the steps.",
+        "recommendation": "Attached only to the instrumental part. Step one, before any tooling: map the close as a list of steps with hours against each, done by the people doing them. Step two: automate the pull-and-reconcile steps that are mechanical and leave judgment steps to a human reviewer, with every automated step producing a diff that a person signs off on for the first three cycles.",
+        "controls": "Elapsed days from period end to signed close, and the number of manual touches in the step map. Evidence: the step map at day 30 with hours, and the same map at day 90 showing which steps disappeared and which ones were kept on purpose.",
+        "management_conversation": "For the ceremonial part: ask which close outputs are read by someone who then does something different. Any step whose only consumer is the file itself is a candidate for retirement, and retiring it is a management decision, not an automation project."
+      },
+      {
+        "process": "Dispatch scheduling every morning on a whiteboard",
+        "classification": "instrumental",
+        "why": "It is judged every day by whether loads move. That is an outcome test, so it is instrumental. The whiteboard is the complication: the record of what was decided and why evaporates each morning, which is why the exception knowledge lives in one person's head.",
+        "recommendation": "Capture before you model. For 30 days, record the morning board as structured data at the point of decision, including the reason when an assignment departs from the obvious one. Only after that, run draft assignments in suggest mode, visible to the ops lead, never auto-dispatched.",
+        "controls": "Coverage of loads and the rate of same-day reassignment, held flat or better. Evidence: a side-by-side log of drafted assignment versus the assignment actually made, with the ops lead's reason recorded when they differ. If the draft agrees with the ops lead often enough to be useful, you will see it in that log; if it does not, you stop.",
+        "management_conversation": ""
+      },
+      {
+        "process": "Quarterly business reviews that take a week to assemble",
+        "classification": "mixed",
+        "why": "Assembling the pack is instrumental if the pack feeds a decision. The review event itself is frequently a status display running on precedent, and a week of analyst time is an expensive display. Only you know which it is here.",
+        "recommendation": "Attached only to the assembly part, and only after the close work lands. Generate the standing sections of the pack from the same outputs the close produces, so the pack is a view on data that already exists rather than a fresh extraction. Analysts write the commentary; the machine does not write the interpretation.",
+        "controls": "Analyst hours to assemble, and the count of decisions recorded in the review itself. Evidence: a timed log of assembly hours for the next two quarters, and the decision list from each review.",
+        "management_conversation": "Before spending anything on the assembly, ask what decision has been changed by a QBR in the last year. If the honest answer is none, the week is ceremony and the fix is to shorten the review, not to speed up the deck. Speeding up a ceremony gets you more ceremony, faster."
+      },
+      {
+        "process": "RFP responses, two people for a week each time",
+        "classification": "instrumental",
+        "why": "It is judged by whether you win work. That is as clean an outcome test as you have.",
+        "recommendation": "Build an answer library from past submitted responses, and assemble first drafts by retrieval against it. Pricing, commitments, service levels and anything contractual stay human-written and human-approved. The draft is a starting point, never a submission.",
+        "controls": "Hours per response and the number of responses you are able to submit per quarter, at a win rate that does not fall. Evidence: hours logged per response before and after, plus submitted count and win rate against the prior four quarters.",
+        "management_conversation": ""
+      }
+    ],
+    "note": "Classification is from your own words, not from a benchmark. Where a process is mixed, the recommendation attaches only to the part that controls an outcome, and the rest is a conversation for management. Two of these four have a conversation attached precisely because tooling would make them worse."
+  },
+  "decision_ledger": {
+    "rows": [
+      {
+        "freed_capacity": "The two days a month currently consumed by the close, as they come back cycle by cycle",
+        "decision": "Name in writing, before the first faster close runs, what those days are spent on. Default without a decision is that they refill with the same work. The recommended landing is the recurring forward-looking analysis the close currently crowds out, specified by name and with a monthly recipient.",
+        "choice": "redeployment",
+        "assigned_role": "Finance lead who owns the monthly close",
+        "by_when": "Day 30, before any close step is automated"
+      },
+      {
+        "freed_capacity": "Analyst hours released from QBR assembly once the pack draws on close outputs",
+        "decision": "Each of the four analysts completes a MyRunbook, then writes a MyWork statement saying what their job is now. Management accepts or amends each one in writing rather than leaving it implicit.",
+        "choice": "mywork",
+        "assigned_role": "Finance lead who owns the monthly close",
+        "by_when": "Day 60"
+      },
+      {
+        "freed_capacity": "The build capacity already being spent on things nobody asked for",
+        "decision": "Give that analyst a request queue with named requesters and a weekly review, starting with the close step map. The capacity exists; what is missing is a demand signal.",
+        "choice": "redeployment",
+        "assigned_role": "IT",
+        "by_when": "Day 15"
+      },
+      {
+        "freed_capacity": "Ops lead time currently spent reconstructing the morning board from memory",
+        "decision": "Convert that time into recorded exception reasoning. The ops lead reviews dispatch drafts and records why a draft is wrong when it is wrong. Nineteen years of exception knowledge becomes a written asset instead of a single point of failure.",
+        "choice": "growth",
+        "assigned_role": "Ops lead",
+        "by_when": "Day 30, running through day 90"
+      },
+      {
+        "freed_capacity": "The hours the two RFP writers spend rebuilding answers that already exist somewhere",
+        "decision": "Decide now whether the gain is taken as more responses submitted or as shorter weeks for the same two people. Both are legitimate; drifting is not. Write the choice down.",
+        "choice": "redeployment",
+        "assigned_role": "Commercial lead who owns RFP responses",
+        "by_when": "Day 75"
+      },
+      {
+        "freed_capacity": "Two marketing licenses that are already paid for and lightly used",
+        "decision": "Confirm the contract terms cover zero data retention and no training on your data, then decide whether to widen access to the analyst bench and the ops lead under the acceptable-use rules. If the terms do not cover it, renegotiate or replace before widening.",
+        "choice": "growth",
+        "assigned_role": "IT",
+        "by_when": "Day 20"
+      }
+    ],
+    "note": "This table is meant to be signed. A row with no owner is not a row, and freed time stays free only because a named person decided it would. The washing machine gave households hours back and the hours went straight into higher standards of clean, because nobody decided otherwise."
+  },
+  "people_arc": {
+    "runbook": "MyRunbook: every person in scope writes down what they actually do all day, in sequence, with rough time against each step. Not the job description, the day. This is the only way to see what hands off to a machine and what cannot, and in your case it is also the only way to see what the ops lead knows. Nineteen years of knowing why every exception exists is an asset that currently exists in exactly one copy. Start the runbooks with the close and with dispatch.",
+    "mywork": "MyWork: having seen the day written down, each person works out what the job is now. This is not a performance exercise and it is not a prelude to anything. The answer is usually that the mechanical third goes and the judgment two thirds get more room. At a staffing placement of 30 this is the heaviest part of the program, because the roster is staying and the work is changing, which means the job descriptions have to change with it or people will simply absorb the slack and you will get no benefit.",
+    "ladder": [
+      {
+        "rung": "Equipped",
+        "means": "Has access under the acceptable-use rules, with contract terms that keep your data out of training, and knows what is not allowed to be pasted in.",
+        "who": "Today, only the two license holders in marketing, and it is not clear they are operating under any rules. By day 30 this should be the four analysts, the ops lead and IT."
+      },
+      {
+        "rung": "Oriented",
+        "means": "Can reliably get a useful result on their own work, knows when the output is wrong, and does not trust it by default.",
+        "who": "The four analysts are the realistic cohort, and the runbooks are what gets them there. The RFP writers follow, because the answer library is a strong first win."
+      },
+      {
+        "rung": "Builder",
+        "means": "Builds a tool another person uses, against a request from someone who asked for it.",
+        "who": "You already have one. The analyst who builds things nobody asked for is a Builder with no backlog. Giving that person the close step map and a request queue is the single cheapest move on this page."
+      },
+      {
+        "rung": "Claude Code-ready",
+        "means": "Works in the codebase and in agentic tooling directly, reviews what it produces, and can hand the result to IT to run.",
+        "who": "Nobody today. The builder analyst is the one candidate. Since you cannot hire engineers at your rates, growing that one person to this rung is not a nice-to-have, it is your engineering strategy."
+      },
+      {
+        "rung": "",
+        "means": "",
+        "who": ""
+      }
+    ],
+    "note": "Trained incapacity is the risk nobody sells against: people who are excellent at the current shape of the work are the slowest to see that the shape changed. The runbook is the counter, because it makes the current shape visible on paper where it can be argued with."
+  },
+  "staffing_map": {
+    "stage": "strong-PMF",
+    "mix": [
+      {
+        "archetype": "Builder",
+        "need": "Turn the close step map into working automation, then the RFP answer library.",
+        "source": "in-house",
+        "why": "The analyst who builds unrequested things is this archetype already. What is missing is a requester and a queue, not a skill."
+      },
+      {
+        "archetype": "Builder",
+        "need": "Finish and hand over the close build, with the handover as a contract deliverable.",
+        "source": "partner",
+        "why": "You cannot hire engineers at your rates and you want it cheap, so buy a bounded engagement rather than a headcount. Scope it to the close only, with the in-house builder paired on it from day one so the capability stays when the partner leaves."
+      },
+      {
+        "archetype": "Sweeper",
+        "need": "Finish what is started. There is a pilot nobody finished and a whiteboard with no record, and both are unfinished edges.",
+        "source": "in-house",
+        "why": "Two of the remaining three analysts are the natural Sweepers. The first sweep job is a one-page write-up of why the pilot stopped, because that reason will recur."
+      },
+      {
+        "archetype": "Maintainer",
+        "need": "Own access, logging, model-tier and retention terms, the audit log and the kill switch.",
+        "source": "in-house",
+        "why": "IT has opinions. Opinions plus ownership is a Maintainer; opinions without ownership is friction. Give IT the governance surface and the stage-gate approval role."
+      },
+      {
+        "archetype": "Grower",
+        "need": "Carry adoption into operations so it is not a finance-only project.",
+        "source": "in-house",
+        "why": "The ops lead has nineteen years of credibility, which is the only currency that moves adoption in an operations floor. Grower here means reviewing drafts and recording exception reasoning, not running training sessions."
+      }
+    ],
+    "hiring_note": "You are not hiring engineers at your rates and nothing in this plan asks you to. The one place hiring might legitimately enter later is if the Maintainer function outgrows what IT can hold alongside its current load, and you will know that from the audit log volume rather than from a feeling. If you do open a role, write the spec from the MyRunbooks rather than from a template, because the runbooks are the only accurate description of the work you will have. Bring that spec back and the hiring track can turn it into a role definition and a screen."
+  },
+  "plan": {
+    "d30": [
+      {
+        "what": "The close exists on paper as a step map with hours against each step, written by the people who do the steps.",
+        "why": "You cannot remove two days from a process you have not measured, and the split between mechanical and judgment work is currently unknown.",
+        "controls": "Elapsed days to close, by making the baseline explicit.",
+        "evidence": "The step map itself, with hours, signed by the close owner."
+      },
+      {
+        "what": "Acceptable use is written and signed, logging is on, and the existing licenses are confirmed to carry zero data retention and no-training terms.",
+        "why": "Your risk placement says careful, and unmanaged licenses plus an abandoned pilot is the opposite of careful. This is a week of work, not a project.",
+        "controls": "Exposure of company data to model training or vendor retention.",
+        "evidence": "Signed acceptable-use document, the contract clause itself, and a log showing who has access."
+      },
+      {
+        "what": "The decision ledger is signed, with owners and dates, before any automation ships.",
+        "why": "Freed hours refill silently. The decision has to precede the saving or it never gets made.",
+        "controls": "Where the two freed days actually go.",
+        "evidence": "The signed ledger, with the day-30 row filled in by the close owner."
+      },
+      {
+        "what": "The morning dispatch board is being recorded as structured data, including the reason for non-obvious assignments.",
+        "why": "No record, no baseline, and no way to ever check a draft against reality. Capture precedes modeling.",
+        "controls": "Whether dispatch knowledge survives outside one person's head.",
+        "evidence": "Thirty days of recorded boards with reason codes."
+      }
+    ],
+    "d60": [
+      {
+        "what": "The mechanical close steps run automatically in observe mode, producing a diff a human signs, and the first full close has been run that way.",
+        "why": "Observe mode is the careful reading of your risk placement. It gives you the accuracy data before anything is trusted.",
+        "controls": "Error rate introduced by automation, held at zero before promotion.",
+        "evidence": "Diff logs for one full close cycle, with the reviewer's sign-off on each automated step."
+      },
+      {
+        "what": "The four analysts have completed MyRunbook and submitted MyWork statements, and management has responded to each in writing.",
+        "why": "The roster is staying and the work is changing. Without an explicit new job definition, people absorb the slack and the gain disappears.",
+        "controls": "Whether freed capacity converts into different work rather than more of the same work.",
+        "evidence": "Four runbooks, four MyWork statements, four written management responses."
+      },
+      {
+        "what": "The RFP answer library exists and a first response has been drafted against it.",
+        "why": "It is the second-cheapest win after the close, and it uses material you already own.",
+        "controls": "Hours per RFP response.",
+        "evidence": "Timed comparison of one response drafted with the library against your current two-person week."
+      },
+      {
+        "what": "The unfinished pilot has a one-page post-mortem.",
+        "why": "The reason it stopped will stop the next thing too, unless it is written down and addressed.",
+        "controls": "Completion rate of the current program.",
+        "evidence": "The one-pager, with the stop reason named and the mitigation stated."
+      }
+    ],
+    "d90": [
+      {
+        "what": "The close takes materially less than two days, and the recovered time has a written destination that the close owner signed on or before day 30.",
+        "why": "This is the single outcome you asked to control, and the second half of it is the part most companies skip.",
+        "controls": "Elapsed days to close, and allocation of the freed days.",
+        "evidence": "Timed close for the final cycle against the day-30 baseline, plus the signed ledger row showing where the days went and a first output from that new work."
+      },
+      {
+        "what": "Dispatch drafts run in suggest mode with the ops lead approving every one, and the agreement log is reviewable.",
+        "why": "Suggest mode is where you find out whether the drafts are worth anything, at no operational risk.",
+        "controls": "Load coverage and same-day reassignment rate, held flat or better.",
+        "evidence": "Ninety days of draft-versus-actual logs with recorded reasons for divergence."
+      },
+      {
+        "what": "A kill-switch drill has been run once, in working hours, by the Maintainer.",
+        "why": "An untested switch is a belief, not a control.",
+        "controls": "Time to stop all automated activity.",
+        "evidence": "Drill record with the elapsed time and the names of who was notified."
+      },
+      {
+        "what": "The QBR conversation has happened and the answer is written down: either the pack assembly gets automated, or the review gets shortened.",
+        "why": "A week of analyst time per quarter deserves an explicit decision rather than an inherited habit.",
+        "controls": "Analyst hours per quarter on QBR assembly.",
+        "evidence": "A written decision from the review owner, plus the hours log for the next cycle."
+      }
+    ]
+  },
+  "governance": {
+    "aup": [
+      "Approved tools only, under contracts with zero data retention and no training on your data. Personal accounts are not approved tools.",
+      "Named categories that never leave the approved tier: customer contract terms, pricing not yet quoted, personnel matters, anything covered by a customer confidentiality clause. Fill in the exact list with IT and the commercial lead.",
+      "Every output that reaches a customer, a counterparty or a financial record is reviewed and owned by a named person. The model is never the author of record.",
+      "Disclosure rule: say internally where a draft came from. A draft nobody admits is a draft nobody checks.",
+      "Logging is on by default and reviewed monthly by IT. Use that cannot be logged is not approved use."
+    ],
+    "hitl_defaults": [
+      "Monthly close: every automated step produces a diff, and a human signs the diff, for the first three cycles minimum.",
+      "Dispatch: suggest only. The ops lead approves every assignment. No auto-dispatch inside the 90 days, regardless of how good the agreement rate looks.",
+      "RFP: human-authored for anything with a price, a commitment or a service level. The library drafts the descriptive sections only.",
+      "Anything that writes to a financial system of record requires two-person approval, the preparer and the reviewer."
+    ],
+    "kill_switch": "One named person, in IT, can revoke access and stop all automated steps inside one business hour, without consulting anyone first. The switch is a documented procedure, not a login someone remembers. It is drilled once inside the 90 days and the drill is written up. The standing rule is that stopping is always allowed and never requires justification in advance; justification comes afterward, in the review.",
+    "stage_gate": "Your placement at 25 means you run observe, then suggest, then act, and you do not skip. Observe means the system produces output nobody acts on while you measure accuracy. Suggest means a human sees the output and chooses. Act means the system proceeds unless stopped. Promotion from one stage to the next is a configuration change, not a culture change: it is approved by a named reviewer, which here is IT together with the process owner, it is recorded in the audit log with the date and the accuracy evidence that justified it, and it is reversible by the kill switch. Inside these 90 days, nothing reaches act except steps that are fully reversible and have no customer-visible effect. The close diffs and the dispatch drafts both stay at suggest."
+  },
+  "capacity_statement": "You did not ask for headcount reduction, and the Kurultai would not produce it if you had. What this document produces instead is a capacity plan: every hour the work gives back is entered in the ledger as an explicit choice a named person makes by a named date. Your own words put it well, that people spend their paychecks. The specific risk worth pricing here is domain-knowledge erosion, and in your case it has a name: the ops lead who knows why every exception exists. If that knowledge is ever treated as a cost rather than an asset, you lose the ability to tell a good exception from a bad one, and no model will recover it, because the reasoning was never written down. That is why the dispatch work starts with recording reasons rather than replacing judgment. It is also worth saying plainly that the documented value in this field has come from adoption at zero layoffs, where capacity was redirected rather than removed. The two days a month are real. They are only a gain if somebody decides where they go before they arrive.",
+  "open_questions": [
+    "Owner names in the ledger: Finance lead who owns the monthly close, and Commercial lead who owns RFP responses, are roles the work implies, not titles you gave us. Confirm who actually holds them before signing, and change the row if the holder is someone else.",
+    "Which steps of the close consume the two days? The step map at day 30 answers this, and until it exists every estimate of the achievable saving is a guess.",
+    "Do the two marketing licenses carry zero data retention and no-training terms? If not, what do they carry?",
+    "What stopped the pilot nobody finished? Budget, a technical wall, a person leaving, or a loss of sponsorship. The answer determines whether this program hits the same wall.",
+    "Has a QBR ever changed a decision? If not, the week of assembly is a ceremony and the fix is editorial, not technical.",
+    "What is your current RFP volume per quarter and your win rate? Without that baseline, the answer library has no outcome to be judged against.",
+    "Do any customer contracts restrict where their data can be processed or stored? This is the one thing that could force a different deployment posture than the hosted tier recommended here.",
+    "Who, specifically, holds the kill switch, and does that person have the authority to use it without asking first?"
+  ]
+}

@@ -8,6 +8,7 @@ import { DynamoDBDocumentClient, PutCommand, GetCommand, UpdateCommand } from "@
 import { CONFIG } from "./config.mjs";
 import { takeToken, takeDailyBudget } from "./ratelimit.mjs";
 import { Doc, SYSTEM, userPrompt, clauseFindings, CLAUSE_RETRY } from "./engine.mjs";
+import { readForClause } from "./reader.mjs";
 import { safeDetail } from "./safelog.mjs";
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
@@ -174,6 +175,30 @@ async function generate(intake, note, stage = () => {}) {
                         intake.outcome_90, intake.company?.name, intake.company?.industry]
                         .filter(Boolean).join(" \n ");
     const findings = clauseFindings(res.parsed_output, "", intakeText, intake.company?.name || "");
+
+    /* The third line. Only asked when the regex found nothing - if the regex
+       already has a finding the document is going back for a rewrite anyway,
+       and a second opinion on a settled question is a call paid for twice.
+
+       Its failure is deliberately asymmetric: a reader we cannot reach must
+       not cost a buyer the document they waited minutes for, and the two
+       layers above it have already run. It can add catches, never subtract
+       documents. */
+    if (!findings.length) {
+      try {
+        await stage("reading");
+        const seen = await readForClause(client, res.parsed_output, note);
+        if (seen.length) {
+          note("reader_caught", { hits: seen.length, fields: seen.map((f) => f.field).slice(0, 6) });
+          findings.push(...seen);
+        }
+      } catch (e) {
+        /* Shape, never content - this error can quote the document back. */
+        console.error("reader_unavailable", e?.name, JSON.stringify(safeDetail(e)));
+        note("reader_unavailable", { kind: e?.kind || e?.name || "error" });
+      }
+    }
+
     if (!findings.length) return { doc: res.parsed_output, usage, retried };
 
     note("clause_breach", { attempt, hits: findings.length, fields: findings.map((f) => f.field).slice(0, 6) });

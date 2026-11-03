@@ -68,3 +68,8 @@
   .demo-banner p{color:#182F29;font-size:9pt}
   .reading-room{display:none!important}
 }
+
+/* The failure state offers a finished document rather than a dead end. The
+   offer is not itself an error, so it does not wear the error colour. */
+.error p{margin:0;max-width:65ch}
+.failure-offer{color:var(--ink);margin-top:12px!important}

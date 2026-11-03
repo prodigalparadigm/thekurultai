@@ -201,6 +201,26 @@ export function clauseFindings(doc, path = "", intake = "", orgName = "") {
   return out;
 }
 
+/* The same walk the regex uses, exposed so the second reader cannot grow its
+   own idea of which fields count. `naming` marks the fields the spec REQUIRES
+   to be able to say the words - the refusal in capacity_statement, the
+   buyer's own process quoted back - so the reader can be held to the same
+   naming-versus-advocating line rather than a second, looser one. */
+export function scannableFields(doc) {
+  const out = [];
+  const walk = (node, p) => {
+    if (typeof node === "string") {
+      if (!NEVER_SCAN(p) && node.trim()) out.push({ path: p, text: node, naming: NAMING_OK(p) });
+      return;
+    }
+    if (Array.isArray(node)) return node.forEach((v, i) => walk(v, `${p}[${i}]`));
+    if (node && typeof node === "object")
+      return Object.entries(node).forEach(([k, v]) => walk(v, p ? `${p}.${k}` : k));
+  };
+  walk(doc, "");
+  return out;
+}
+
 /* The corrective sent back on the one retry a breach is allowed. */
 export const CLAUSE_RETRY = [
   "That draft broke John's Clause. These passages RECOMMEND or price headcount",

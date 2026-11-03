@@ -701,6 +701,80 @@ head("Known gaps in the regex guard (recorded, not asserted)");
   console.log(`  ${caught} of ${GAPS.length} caught by the regex alone.`);
   console.log("  The engine's instructions - the clause's first line - held in every live");
   console.log("  run of both stress tests. This regex is the backstop, not the rail.");
+  console.log("  The third line is api/lambda/reader.mjs. Its JUDGEMENT needs a model, so");
+  console.log("  these become assertions only under:  node api/qa/reader-test.mjs");
+  console.log("  Everything around that judgement is asserted below, for free.");
+}
+
+/* ---------------- the second reader, minus the model ----------------
+   The reader's verdict needs a model and a key, and that test lives in
+   api/qa/reader-test.mjs. Everything ELSE about it can be proved here for
+   nothing: which fields it is shown, which it is told may name the refusal,
+   the shape it hands back, and - the one that matters most - that a reader
+   which falls over does not take the buyer's document down with it. */
+head("The second reader, everything except the judgement");
+{
+  const { readForClause } = await import("../lambda/reader.mjs");
+  const { scannableFields } = await import("../lambda/clause.mjs");
+
+  const doc = {
+    title: "Regional Innovation Fund's Kurultai",
+    capacity_statement: "You asked for a layoff plan and the Kurultai does not produce one.",
+    lead: "A lead sentence long enough to be worth reading by the second reader.",
+    plan: { d30: [{ what: "Bring the claims team down to eight by the end of Q1." }] },
+    ceremony_audit: { rows: [{ process: "Claims intake, which we want to cut headcount on" }] },
+  };
+
+  const shown = scannableFields(doc).filter((f) => f.text.trim().length > 25);
+  if (!shown.some((f) => f.path === "title")) pass("the reader is never shown the title");
+  else fail("the reader is never shown the title", "the org's own name can trigger the rail");
+
+  const naming = shown.filter((f) => f.naming).map((f) => f.path).sort();
+  if (naming.join() === ["capacity_statement", "ceremony_audit.rows[0].process", "lead"].join())
+    pass("the fields that may NAME the refusal are marked for the reader");
+  else fail("the fields that may NAME the refusal are marked for the reader", naming.join(", "));
+
+  if (shown.some((f) => f.path === "plan.d30[0].what"))
+    pass("an ordinary recommendation field is shown to the reader");
+  else fail("an ordinary recommendation field is shown to the reader", "plan field missing");
+
+  /* A stub standing in for the model, so the plumbing is proved without a call. */
+  const stub = (breaches) => ({ messages: { create: async () => ({
+    parsed_output: { breaches }, usage: { input_tokens: 1, output_tokens: 1 },
+  }) } });
+
+  const idOf = (path) => shown.findIndex((f) => f.path === path);
+  const hits = await readForClause(
+    stub([{ id: idOf("plan.d30[0].what"), quote: "Bring the claims team down to eight by the end of Q1.", why: "headcount target" }]),
+    doc);
+  if (hits.length === 1 && hits[0].field === "plan.d30[0].what")
+    pass("a reader finding comes back shaped like a clause finding");
+  else fail("a reader finding comes back shaped like a clause finding", JSON.stringify(hits));
+  if (hits[0] && hits[0].text && hits[0].pattern === "second reader")
+    pass("the finding names which layer caught it");
+  else fail("the finding names which layer caught it", JSON.stringify(hits[0]));
+
+  /* The model is free to return an id for a field that does not exist. */
+  const bogus = await readForClause(stub([{ id: 999, quote: "x", why: "y" }]), doc);
+  if (!bogus.length) pass("an out-of-range id from the reader is discarded, not crashed on");
+  else fail("an out-of-range id from the reader is discarded, not crashed on", JSON.stringify(bogus));
+
+  const empty = await readForClause(stub([]), doc);
+  if (!empty.length) pass("a clean read returns nothing");
+  else fail("a clean read returns nothing", JSON.stringify(empty));
+
+  /* The asymmetry: this layer may add catches and must never subtract a
+     document. index.mjs is what enforces it, so that is what is checked. */
+  const lam = readFileSync(join(ROOT, "lambda", "index.mjs"), "utf8");
+  const block = (/if \(!findings\.length\) \{[\s\S]*?\n    \}/.exec(lam) || [""])[0];
+  if (/try \{[\s\S]*readForClause[\s\S]*\} catch/.test(block))
+    pass("a reader that falls over does not fail the buyer's document");
+  else fail("a reader that falls over does not fail the buyer's document",
+    "readForClause is not inside a try/catch in the retry loop");
+  if (/READER_MODEL = "claude-haiku/.test(readFileSync(join(ROOT, "lambda", "reader.mjs"), "utf8")))
+    pass("the reader runs on Haiku, so it is cheap enough to never switch off");
+  else fail("the reader runs on Haiku, so it is cheap enough to never switch off",
+    "a dear reader is a reader that gets disabled the month the bill lands");
 }
 
 /* ---------------- is the ENGINE running this canon? ----------------
@@ -734,6 +808,28 @@ if (process.argv.includes("--deployed")) {
       }
     }
     if (!drift) pass(`all ${CANON.sliders.length * 2} poles in the deployed engine match canon`);
+
+    /* Canon is not the only thing that can be stale. A deploy is a separate
+       act from a commit, and on 3 Nov two of them were refused while the
+       commits went through - so the repo can be right and the thing serving
+       buyers can be a day behind, with nothing on screen to notice. These
+       check the bundle for the parts of the engine that only exist there. */
+    const inBundle = (file) => {
+      try { return execSync(`unzip -p /tmp/kurultai-deployed.zip ${file}`, { encoding: "utf8" }); }
+      catch { return ""; }
+    };
+    const deployedIndex = inBundle("index.mjs");
+    if (/readForClause/.test(deployedIndex) && inBundle("reader.mjs").length)
+      pass("the deployed engine runs the second reader");
+    else fail("the deployed engine runs the second reader",
+      "John's Clause is on two layers in production, not three - the repo is ahead of the deploy");
+    if (/PRODUCT-MARKET-FIT VOCABULARY IS THE SPECIAL CASE/.test(inBundle("engine.mjs")))
+      pass("the deployed engine has the stage vocabulary fix");
+    else fail("the deployed engine has the stage vocabulary fix",
+      "a demo document can still label an established operator strong-PMF and then contradict itself");
+    if (/NEVER POINT BY POSITION/.test(inBundle("engine.mjs")))
+      pass("the deployed engine is told not to point by position");
+    else fail("the deployed engine is told not to point by position", "the repo is ahead of the deploy");
   } catch (e) {
     fail("could not read the deployed engine's canon", String(e.message).slice(0, 160));
   }

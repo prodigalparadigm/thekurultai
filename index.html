@@ -114,7 +114,7 @@
 <label for="staffing_text">Your staffing reality, in plain words</label><textarea id="staffing_text" name="staffing_text" rows="3" maxlength="4000" placeholder="Four analysts, one of whom builds things nobody asked for. Ops lead has been here 19 years and knows why every exception exists."></textarea>
 <label for="priority">The one outcome you want controlled in the next 90 days <span>(required)</span></label><textarea id="priority" name="priority" rows="3" maxlength="800" placeholder="Stop losing two days a month to the close." required></textarea>
 <p class="privacy-line"><strong>What travels where.</strong> What you type is sent to Anthropic's API to be read, and comes back as your document. Nothing is stored on our side but a count, so the day's limit can be enforced, and the finished document, which deletes itself within two hours. No account, no tracking, no record you did not take with you.</p>
-<p id="form-error" class="error" role="alert" hidden></p>
+<div id="form-error" class="error" role="alert" tabindex="-1" hidden></div>
 <button class="button" type="submit" id="submit-brief">Convene the council</button>
 <p class="small">QUICK is free. The document takes a few minutes to write.</p>
 </div>

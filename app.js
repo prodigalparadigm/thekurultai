@@ -129,6 +129,7 @@ let demo = false;
 const STAGES = {
   writing: 'Writing your document. This is the long part.',
   checking: 'Checking the draft against the cut line.',
+  reading: 'A second reader is checking the draft against the one promise.',
   rewriting: 'The safety check stopped the first draft, so it is being written again. This adds a couple of minutes.',
 };
 
@@ -291,13 +292,32 @@ form?.addEventListener('submit', async (e) => {
   waiting.focus();
   $('#submit-brief').disabled = true;
 
+  /* When we cannot give them the document they asked for, give them a
+     finished one rather than a dead end.
+
+     The daily cap is the likeliest reason a stranger ever reads this. On a
+     day the announcement works it is the FIRST thing most visitors meet, and
+     "come back tomorrow" is a poor answer when a complete document is sitting
+     one click away and costs nobody their turn. It applies to every terminal
+     failure, not just the cap: a visitor who cannot have their own document
+     should still get to see what one looks like. Form-validation errors never
+     reach here - those are handled before the run is booked. */
+  const offerFinished = () => el('p', { className: 'failure-offer' }, [
+    'While you are here: ',
+    el('a', { href: DEMO.document, textContent: 'a complete document the instrument wrote' }),
+    ', for a company we invented, and the ',
+    el('a', { href: 'editions/', textContent: 'editions library' }),
+    ', which reads four real organizations from their own public filings. Both are free, and neither takes a turn at the engine.',
+  ]);
+
   const stop = (message) => {
     readingRoom.stop();
     waiting.hidden = true;
     $('#submit-brief').disabled = false;
-    $('#form-error').hidden = false;
-    $('#form-error').textContent = message;
-    $('#form-error').focus?.();
+    const err = $('#form-error');
+    err.hidden = false;
+    err.replaceChildren(el('p', { textContent: message }), offerFinished());
+    err.focus?.();
   };
 
   let id;

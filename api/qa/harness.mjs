@@ -847,10 +847,26 @@ if (process.argv.includes("--deployed")) {
       catch { return ""; }
     };
     const deployedIndex = inBundle("index.mjs");
-    if (/readForClause/.test(deployedIndex) && inBundle("reader.mjs").length)
-      pass("the deployed engine runs the second reader");
-    else fail("the deployed engine runs the second reader",
+    const deployedReader = inBundle("reader.mjs");
+    if (/readForClause/.test(deployedIndex) && deployedReader.length)
+      pass("the deployed engine carries the second reader");
+    else fail("the deployed engine carries the second reader",
       "John's Clause is on two layers in production, not three - the repo is ahead of the deploy");
+
+    /* PRESENT is not the same as WORKING, and this check once said 181/181
+       over a production reader that could not function. The first deployed
+       reader called messages.create(), which never returns parsed_output, so
+       it ran on every document, paid for a Haiku call and silently found
+       nothing. Asking whether the file is in the bundle could not see that.
+       Ask what it actually calls. */
+    if (/client\.messages\.parse\(/.test(deployedReader) && !/client\.messages\.create\(/.test(deployedReader))
+      pass("the deployed reader calls parse(), so it can actually return a finding");
+    else fail("the deployed reader calls parse(), so it can actually return a finding",
+      "production's reader calls create() - it runs, it bills, and it finds nothing. John's Clause is on two layers.");
+    if (/reader_no_output/.test(deployedReader))
+      pass("the deployed reader says so when it gets no output");
+    else fail("the deployed reader says so when it gets no output",
+      "a broken reader and a clean read look identical in production's logs");
     if (/PRODUCT-MARKET-FIT VOCABULARY IS THE SPECIAL CASE/.test(inBundle("engine.mjs")))
       pass("the deployed engine has the stage vocabulary fix");
     else fail("the deployed engine has the stage vocabulary fix",

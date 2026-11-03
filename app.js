@@ -252,6 +252,26 @@ const cell = (text, col) => {
   td.setAttribute('data-col', col);
   return td;
 };
+/* The archetype names are Cherny's, defined in the FAQ. Someone who lands on
+   their own document may never have seen the homepage, so the document has to
+   carry the definition the way the editions do. The engine constrains the
+   field to these five, and anything else falls through as plain text. */
+const ARCHETYPES = {
+  Prototyper: 'Prototyper: generates brand-new ideas and churns out many concepts quickly, most of which never ship.',
+  Builder: 'Builder: takes a prototype or rough idea and rapidly turns it into a production-grade product or infrastructure.',
+  Sweeper: 'Sweeper: cleans up the interface, simplifies code and systems, unships failing features and optimizes performance.',
+  Grower: 'Grower: takes an existing shipped product and iterates continuously to improve product-market fit.',
+  Maintainer: 'Maintainer: owns mature systems and keeps them secure, reliable, fast and efficient as they scale.',
+};
+const archetypeCell = (text, col) => {
+  const name = String(text ?? '').trim();
+  if (!ARCHETYPES[name]) return cell(text, col);
+  const a = el('a', { className: 'term', href: '#archetypes', textContent: name });
+  a.title = ARCHETYPES[name];
+  const td = el('td', {}, [el('strong', {}, [a])]);
+  td.setAttribute('data-col', col);
+  return td;
+};
 function recBlock(r) {
   const d = el('div', {}, [el('p', { textContent: r.what })]);
   if (r.why) d.append(el('p', { textContent: r.why }));
@@ -366,7 +386,7 @@ function renderDocument(d) {
     strongLine('Stage.', d.staffing_map?.stage),
     table(['Archetype', 'What you need it for', 'Where it comes from', 'Why'],
       (d.staffing_map?.mix || []).map((r) => el('tr', {}, [
-        cell(r.archetype, 'Archetype'), cell(r.need, 'What you need it for'),
+        archetypeCell(r.archetype, 'Archetype'), cell(r.need, 'What you need it for'),
         cell(r.source, 'Where it comes from'), cell(r.why, 'Why'),
       ]))),
     d.staffing_map?.hiring_note ? el('p', { textContent: d.staffing_map.hiring_note }) : null,

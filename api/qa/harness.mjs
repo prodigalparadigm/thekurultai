@@ -140,6 +140,45 @@ for (const [name, text, hay] of required) {
   else fail(name, `not found:\n"${text}"`);
 }
 
+/* ---------------- the archetype legend ----------------
+   Cherny's five are a closed set: the engine constrains the field to exactly
+   these names, the FAQ defines them, and the pages link to that definition.
+   Three places again, same failure mode as the slider poles - the page can
+   drift from the engine and nothing would say so. The engine's own line is
+   the source here, the way sliders.json is for the poles. */
+head("The five archetypes, page against engine");
+{
+  const engineSrc = readFileSync(join(ROOT, "lambda", "engine.mjs"), "utf8");
+  const flat = engineSrc.replace(/",\s*\n\s*"/g, " ").replace(/\s+/g, " ");
+  const m = /archetype is EXACTLY one of:\s*([A-Za-z, ]+?)\.\s*source is EXACTLY/.exec(flat);
+  const fromEngine = m ? m[1].split(",").map((x) => x.trim()).filter(Boolean) : [];
+  if (fromEngine.length === 5) pass(`engine names five archetypes (${fromEngine.join(", ")})`);
+  else fail("engine names five archetypes", `parsed: ${JSON.stringify(fromEngine)}`);
+
+  if (/id="archetypes"/.test(landing)) pass("the legend exists at #archetypes");
+  else fail("the legend exists at #archetypes", "no element with that id on the landing page");
+
+  /* The library holds every claim to a citation, and attributing a framework
+     to a named person is a claim. */
+  if (/bcherny\/status\/2071379474277613732/.test(landing)) pass("the legend cites Cherny's post");
+  else fail("the legend cites Cherny's post", "the source link is gone from #archetypes");
+
+  /* Each name has to be DEFINED in the legend, not merely mentioned somewhere
+     on a long page - so look for the bolded term that opens its paragraph. */
+  const legend = (landing.split('id="archetypes"')[1] || "").split("<h3")[0];
+  for (const name of fromEngine) {
+    if (legend.includes(`<strong>${name}.</strong>`)) pass(`${name} is defined in the legend`);
+    else fail(`${name} is defined in the legend`, "no <strong>" + name + ".</strong> paragraph");
+  }
+
+  /* And the document the engine renders has to carry the same five, or a
+     reader who never saw the homepage gets a bare word. */
+  for (const name of fromEngine) {
+    if (app.includes(`${name}:`)) pass(`${name} carries its gloss into the document`);
+    else fail(`${name} carries its gloss into the document`, "not in app.js ARCHETYPES");
+  }
+}
+
 head("The doors out");
 for (const [name, needle, hay] of [
   ["Ripper link, in the rendered staffing map", "rippertherecruiter.com", app],

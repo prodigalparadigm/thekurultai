@@ -151,6 +151,34 @@ if [ "$APIID" = "None" ] || [ -z "$APIID" ]; then
 else
   echo "already present ($APIID)."
 fi
+# Routes are created in the branch above, which only runs for a NEW api. That
+# means a route added to this file later never reaches an api that already
+# exists - which is exactly the shape of /look, added 5 Nov 2026 for the LOOKS
+# counter. This block asks what exists and adds only what is missing, so it is
+# safe to run on a fresh account and on the live one.
+say "6b/7  routes (adds what this file knows about and the API does not)"
+INTEG="$(aws apigatewayv2 get-integrations --api-id "$APIID" --region "$REGION" \
+  --query 'Items[0].IntegrationId' --output text)"
+for R in 'POST /run' 'GET /run' 'OPTIONS /run' 'POST /look' 'GET /look' 'OPTIONS /look'; do
+  HAVE="$(aws apigatewayv2 get-routes --api-id "$APIID" --region "$REGION" \
+    --query "Items[?RouteKey=='$R'].RouteId | [0]" --output text)"
+  if [ "$HAVE" = "None" ] || [ -z "$HAVE" ]; then
+    aws apigatewayv2 create-route --api-id "$APIID" --region "$REGION" \
+      --route-key "$R" --target "integrations/${INTEG}" >/dev/null
+    echo "   + $R"
+  else
+    echo "   = $R"
+  fi
+done
+# The invoke permission is scoped per route path. The original statement covers
+# /run only, so without this API Gateway answers /look with a 403 it cannot
+# explain. Allowed to fail: re-adding an existing statement id is an error.
+aws lambda add-permission --function-name "$FN" --region "$REGION" \
+  --statement-id apigw-invoke-look --action lambda:InvokeFunction \
+  --principal apigateway.amazonaws.com \
+  --source-arn "arn:aws:execute-api:${REGION}:${ACCOUNT}:${APIID}/*/*/look" >/dev/null 2>&1 \
+  && echo "   + invoke permission for /look" || echo "   = invoke permission for /look"
+
 ENDPOINT="$(aws apigatewayv2 get-api --api-id "$APIID" --region "$REGION" \
   --query ApiEndpoint --output text)/run"
 rm -f function.zip

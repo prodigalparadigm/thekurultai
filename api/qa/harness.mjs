@@ -19,6 +19,8 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { clauseFindings } from "../lambda/clause.mjs";
 import { safeDetail } from "../lambda/safelog.mjs";
+import { CONFIG } from "../lambda/config.mjs";
+import { siteFor, normalizePath, lookerFor, utcDay, lookKeys } from "../lambda/look.mjs";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const SITE = process.env.KURULTAI_SITE || join(ROOT, "..");
@@ -1080,6 +1082,326 @@ if (existsSync(samples)) {
     if (!bare.length) pass(`${f}: every numeric paragraph is sourced`);
     else fail(`${f}: every numeric paragraph is sourced`,
       bare.slice(0, 3).map((p) => p.slice(0, 110)).join("\n---\n"));
+  }
+}
+
+/* ---------------- the LOOKS counter ----------------
+   Added 5 Nov 2026 with the counter itself. The static half costs nothing and
+   runs on every push; the live half needs --looks, because it talks to the
+   deployed endpoint and to every public page in the house.
+
+   The property being defended is not "the counter works". It is that the
+   counter cannot name anybody even if someone reads the table. */
+{
+  head("The LOOKS counter, statically");
+
+  /* Site identity. An origin that is not ours must get nothing - including no
+     clue about what the list contains. */
+  const siteCases = [
+    ["https://thekurultai.com", "thekurultai"],
+    ["https://www.prodigalparadigm.com", "prodigalparadigm"],
+    ["HTTPS://EUCLIDEANOBJECTS.COM", "euclideanobjects"],
+    ["https://flyer2fork.org", "flyer2fork"],
+    ["https://rippertherecruiter.com", "rippertherecruiter"],
+    ["https://thekurultai.com.evil.example", null],
+    ["http://thekurultai.com", null],          // plain http is not one of ours
+    ["", null],
+  ];
+  let siteBad = 0;
+  for (const [origin, want] of siteCases)
+    if (siteFor(origin) !== want) { siteBad++; fail(`origin ${origin || "(none)"} -> ${want}`, `got ${siteFor(origin)}`); }
+  if (!siteBad) pass(`${siteCases.length} origins map to the right site, strangers to none`);
+
+  /* s= is honoured for the harness's own probe, so it must not be a way to
+     reach anything that is not a configured site - including a property
+     inherited from Object.prototype. */
+  if (siteFor("", "constructor") === null && siteFor("", "toString") === null
+      && siteFor("", "notasite") === null && siteFor("", "qa") === "qa")
+    pass("s= reaches configured sites only, not prototype properties");
+  else fail("s= reaches configured sites only, not prototype properties");
+
+  /* The qa site must be unreachable from a browser, or harness traffic could
+     land in a figure she quotes. */
+  if (CONFIG.lookSites.qa && CONFIG.lookSites.qa.length === 0)
+    pass("the qa probe site has no origins, so no browser can reach it");
+  else fail("the qa probe site has no origins, so no browser can reach it",
+    "give it an empty origin list in config.mjs");
+
+  /* Path handling. Junk must be bounded, and a page must not be able to
+     become a thousand rows by collecting query strings. */
+  const pathCases = [
+    ["/", "/"], ["", "/"], ["/report.html", "/report.html"], ["/editions/", "/editions/"],
+    ["/report.html?utm_source=x", "/report.html"], ["/report.html#top", "/report.html"],
+    ["/Report.HTML", "/report.html"], ["report.html", "/report.html"],
+    ["/../../etc/passwd", "other"], ["/wp-login.php", "other"], ["/junk", "other"],
+    ["/" + "a".repeat(90) + ".html", "other"], ["/café.html", "other"],
+    ["/a\u0000.html", "other"],
+  ];
+  let pathBad = 0;
+  for (const [given, want] of pathCases)
+    if (normalizePath(given) !== want) { pathBad++; fail(`path ${JSON.stringify(given)} -> ${want}`, `got ${normalizePath(given)}`); }
+  if (!pathBad) pass(`${pathCases.length} paths normalise as intended, junk folds to one bucket`);
+
+  /* THE privacy property. If this check ever fails, the page's promise has
+     become false and the counter has to come off until it is true again. */
+  const d1 = utcDay(new Date("2026-11-05T12:00:00Z"));
+  const d2 = utcDay(new Date("2026-11-06T12:00:00Z"));
+  const ip = "203.0.113.9";
+  const h1 = lookerFor(ip, d1), h2 = lookerFor(ip, d2);
+  if (h1 === lookerFor(ip, d1)) pass("the same looker on the same day hashes the same (so distinct counting works)");
+  else fail("the same looker on the same day hashes the same");
+  if (h1 !== h2) pass("the SAME looker hashes differently tomorrow - the days cannot be joined");
+  else fail("the SAME looker hashes differently tomorrow", "the salt is not rotating - distinct becomes a lasting identifier");
+  if (lookerFor(ip, d1) !== lookerFor("203.0.113.10", d1)) pass("different lookers hash differently");
+  else fail("different lookers hash differently");
+  if (/^[0-9a-f]{12}$/.test(h1) && !/203|113/.test(h1)) pass("the stored hash is 12 hex characters and carries no digit of the address");
+  else fail("the stored hash is 12 hex characters and carries no digit of the address", h1);
+
+  /* The beacon, in the repos. Present-in-the-repo is the weaker claim; the
+     live check under --looks is the one that matters, and this one exists so
+     a missing line is caught before a push rather than after. */
+  const SITE_DIRS = {
+    thekurultai: join(ROOT, ".."),
+    prodigalparadigm: join(ROOT, "..", "..", "pp_site_f2f_20261028"),
+    euclideanobjects: join(ROOT, "..", "..", "euclideanobjects"),
+    rippertherecruiter: join(ROOT, "..", "..", "rippertherecruiter"),
+  };
+  /* A page git is told to ignore is a page that is deliberately NOT published
+     - the Centene edition is held back until its gate clears. Failing on it
+     would be wrong, and silently passing would let it ship uncounted later,
+     so it is reported as a reminder and counted as neither. */
+  const { execFileSync } = await import("node:child_process");
+  const ignoredIn = (dir, files) => {
+    try {
+      return new Set(execFileSync("git", ["-C", dir, "check-ignore", "--", ...files],
+        { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).split("\n").filter(Boolean));
+    } catch { return new Set(); }   // exit 1 simply means none of them are ignored
+  };
+
+  for (const [site, dir] of Object.entries(SITE_DIRS)) {
+    if (!existsSync(dir)) { pass(`${site}: not on this machine, skipped`); continue; }
+    const all = readdirSync(dir, { recursive: true })
+      .map(String)
+      .filter((f) => f.endsWith(".html") && !f.includes("node_modules"));
+    const held = ignoredIn(dir, all);
+    const files = all.filter((f) => !held.has(f));
+    const missing = files.filter((f) => !readFileSync(join(dir, f), "utf8").includes("LOOKS counter"));
+    if (!missing.length) pass(`${site}: the beacon is on all ${files.length} published page(s) in the repo`);
+    else fail(`${site}: the beacon is on all ${files.length} published page(s) in the repo`,
+      `missing from: ${missing.join(", ")}`);
+    for (const f of held)
+      if (!readFileSync(join(dir, f), "utf8").includes("LOOKS counter"))
+        console.log(`        note: ${site}/${f} is held back by .gitignore and has no beacon.`
+          + " Add the line when it ships, or it will publish uncounted.");
+  }
+
+  /* ---- a site may not count quietly ----
+     The counter stores nothing that could name a person, and the check above
+     proves it. That is not the whole obligation: a page that says what it
+     does and does not collect has to stay TRUE once a counter is added to it.
+     Both privacy pages enumerated what the site collects and said "the site
+     is static", and rippertherecruiter promised "no server, no account, no
+     record" in its own voice - all three were made false by the beacon until
+     the wording caught up, which is exactly the kind of thing that ships
+     unnoticed. So: a site carrying the beacon must also carry a disclosure.
+
+     The phrasings differ by site on purpose. The Kurultai already made the
+     promise in its own words before this counter existed, and Ripper speaks
+     in the first person about a duck; forcing one sentence into all of them
+     would have made the pages read like a policy and the promise less
+     likely to be believed. The CLAIM is verbatim; the voice is not. */
+  const DISCLOSURES = [
+    "Page looks are counted",       // prodigalparadigm, euclideanobjects
+    "stores nothing but a count",   // thekurultai, in its own existing words
+    "a page load is counted",       // rippertherecruiter, in its own voice
+  ];
+  for (const [site, dir] of Object.entries(SITE_DIRS)) {
+    if (!existsSync(dir)) continue;
+    const all = readdirSync(dir, { recursive: true }).map(String)
+      .filter((f) => f.endsWith(".html") && !f.includes("node_modules"));
+    const beaconed = all.filter((f) => readFileSync(join(dir, f), "utf8").includes("LOOKS counter"));
+    if (!beaconed.length) continue;
+    const says = all.some((f) => {
+      const html = readFileSync(join(dir, f), "utf8");
+      return DISCLOSURES.some((d) => html.includes(d));
+    });
+    if (says) pass(`${site}: counts looks AND says so on the site`);
+    else fail(`${site}: counts looks AND says so on the site`,
+      `${beaconed.length} page(s) carry the beacon and no page discloses it.\n        `
+      + "Either add the disclosure or take the beacon off - a counter the site denies\n        "
+      + "having is the one thing this build was not allowed to produce.");
+  }
+}
+
+/* ---------------- live: does the counter actually count? ----------------
+   node api/qa/harness.mjs --looks
+
+   Free - no model call, nothing against the daily cap - but it needs the
+   network and AWS, so it is opt-in. Two things only this half can establish:
+
+     1. The beacon is on the pages as SERVED. A repo grep proves the line was
+        committed, not that it was published, and not that it points at an
+        endpoint that still exists. The API id lives in fifty files; a
+        redeploy that changed it would leave every one of them pointing at a
+        gateway that is gone, and a repo grep would still pass.
+     2. The endpoint counts what it should and refuses what it should. It
+        fires against the qa site, which no browser can reach, so none of
+        this lands in a number she quotes. */
+if (process.argv.includes("--looks")) {
+  const { execFileSync } = await import("node:child_process");
+  const REGION = "us-east-1";
+  const ddb = (args) => {
+    try {
+      return execFileSync("aws", ["dynamodb", ...args, "--region", REGION],
+        { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    } catch { return ""; }
+  };
+  const countOf = (pk) => {
+    const out = ddb(["get-item", "--table-name", CONFIG.tableName, "--consistent-read",
+      "--key", JSON.stringify({ pk: { S: pk } }), "--output", "json"]);
+    try { return Number(JSON.parse(out || "{}")?.Item?.v?.N || 0); } catch { return 0; }
+  };
+
+  /* The endpoint the PAGES were given, and the endpoint that is DEPLOYED.
+     They are allowed to be the same thing and nothing else. */
+  const appjs = readFileSync(join(ROOT, "..", "app.js"), "utf8");
+  const runEndpoint = (/const KURULTAI_ENDPOINT = "([^"]+)"/.exec(appjs) || [])[1] || "";
+  const LOOK = runEndpoint.replace(/\/run$/, "/look");
+
+  head("The LOOKS counter, live");
+
+  if (!LOOK) { fail("an endpoint is configured in app.js"); }
+  else {
+    /* ---- 1. the beacon on the pages as served ---- */
+    const SERVED = {
+      thekurultai: join(ROOT, ".."),
+      prodigalparadigm: join(ROOT, "..", "..", "pp_site_f2f_20261028"),
+      euclideanobjects: join(ROOT, "..", "..", "euclideanobjects"),
+      rippertherecruiter: join(ROOT, "..", "..", "rippertherecruiter"),
+      flyer2fork: null,              // one page, served from S3 at /
+    };
+    for (const [site, dir] of Object.entries(SERVED)) {
+      const base = CONFIG.lookSites[site][0];
+      let paths = ["/"];
+      if (dir && existsSync(dir)) {
+        const held = (() => {
+          try {
+            const all = readdirSync(dir, { recursive: true }).map(String)
+              .filter((f) => f.endsWith(".html") && !f.includes("node_modules"));
+            const ig = new Set(execFileSync("git", ["-C", dir, "check-ignore", "--", ...all],
+              { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).split("\n").filter(Boolean));
+            return { all, ig };
+          } catch (e) {
+            const all = readdirSync(dir, { recursive: true }).map(String)
+              .filter((f) => f.endsWith(".html") && !f.includes("node_modules"));
+            return { all, ig: new Set() };
+          }
+        })();
+        paths = held.all.filter((f) => !held.ig.has(f))
+          .map((f) => "/" + f.replace(/(^|\/)index\.html$/, "$1"));
+      }
+      const bad = [], stale = [], down = [];
+      for (const p of paths) {
+        let html = null;
+        try {
+          const r = await fetch(base + p, { redirect: "follow" });
+          if (!r.ok) { down.push(`${p} (${r.status})`); continue; }
+          html = await r.text();
+        } catch { down.push(`${p} (unreachable)`); continue; }
+        if (!html.includes("LOOKS counter")) bad.push(p);
+        else if (!html.includes(LOOK)) stale.push(p);
+      }
+      const label = `${site}: the beacon is live on all ${paths.length} served page(s)`;
+      if (!bad.length && !stale.length && !down.length) pass(label);
+      else fail(label, [
+        bad.length ? `no beacon on: ${bad.join(", ")}` : "",
+        stale.length ? `beacon points at an endpoint that is not ${LOOK} on: ${stale.join(", ")}` : "",
+        down.length ? `could not be served: ${down.join(", ")}` : "",
+      ].filter(Boolean).join("\n        "));
+    }
+
+    /* ---- 2. the endpoint counts, and refuses ----
+       Against s=qa, which has no origins and is skipped by every report. */
+    const today = utcDay();
+    const k = lookKeys("qa", "/qa-probe.html");
+    const other = lookKeys("qa", "other");
+    const look = async (qs) => {
+      try {
+        const r = await fetch(`${LOOK}?${qs}`, { method: "POST" });
+        return r.status;
+      } catch { return 0; }
+    };
+
+    const before = countOf(k.page);
+    const st1 = await look("s=qa&p=/qa-probe.html&qa=1");
+    const afterQa = countOf(k.page);
+    if (st1 === 204 && afterQa === before)
+      pass("a qa-excluded look answers 204 and does NOT count");
+    else fail("a qa-excluded look answers 204 and does NOT count",
+      `status ${st1}, count ${before} -> ${afterQa}`);
+
+    const st2 = await look("s=qa&p=/qa-probe.html");
+    const afterReal = countOf(k.page);
+    if (st2 === 204 && afterReal === before + 1)
+      pass("a counted look answers 204 and increments by exactly one");
+    else fail("a counted look answers 204 and increments by exactly one",
+      `status ${st2}, count ${before} -> ${afterReal}`);
+
+    const strangerBefore = countOf(lookKeys("notasite", "/").page);
+    const st3 = await look("s=notasite&p=/");
+    if (st3 === 204 && countOf(lookKeys("notasite", "/").page) === strangerBefore)
+      pass("an unrecognised site answers 204 like everything else and counts nothing");
+    else fail("an unrecognised site answers 204 like everything else and counts nothing",
+      `status ${st3}`);
+
+    const junkBefore = countOf(other.page);
+    const st4 = await look("s=qa&p=/wp-login.php");
+    if (st4 === 204 && countOf(other.page) === junkBefore + 1)
+      pass("junk paths fold into one 'other' row instead of inventing rows");
+    else fail("junk paths fold into one 'other' row instead of inventing rows",
+      `status ${st4}, other ${junkBefore} -> ${countOf(other.page)}`);
+
+    /* ---- 3. the stored shape: nothing here could name a person ----
+       This is the check that decides whether the sentence on the page is
+       true. It runs against the shared table, so it covers every site at
+       once. It reads the probe row and one real row per site. */
+    const ALLOWED = new Set(["pk", "v", "d", "expires", "capped", "maxd"]);
+    const suspect = [
+      [/\b\d{1,3}(\.\d{1,3}){3}\b/, "something shaped like an IPv4 address"],
+      [/([0-9a-f]{0,4}:){4,}[0-9a-f]{0,4}/i, "something shaped like an IPv6 address"],
+      [/mozilla|chrome\/|safari\/|gecko|bot\b/i, "something shaped like a user agent"],
+      [/@[a-z0-9.-]+\.[a-z]{2,}/i, "something shaped like an email address"],
+      [/[a-z0-9._%+-]+%40/i, "an encoded email address"],
+    ];
+    const keys = [k.page, k.day, other.page,
+      ...Object.keys(CONFIG.lookSites).filter((s) => CONFIG.lookSites[s].length)
+        .map((s) => `lookday#${s}#${today}`)];
+    let read = 0, offences = [];
+    for (const pk of keys) {
+      const out = ddb(["get-item", "--table-name", CONFIG.tableName, "--consistent-read",
+        "--key", JSON.stringify({ pk: { S: pk } }), "--output", "json"]);
+      let item = null;
+      try { item = JSON.parse(out || "{}").Item || null; } catch { item = null; }
+      if (!item) continue;
+      read++;
+      for (const [attr, val] of Object.entries(item)) {
+        if (!ALLOWED.has(attr)) offences.push(`${pk}: unexpected field "${attr}"`);
+        const flat = JSON.stringify(val);
+        /* pk carries the site and the path, which are ours, not the
+           visitor's - an IP-shaped match there would still be wrong. */
+        for (const [re, what] of suspect)
+          if (re.test(flat)) offences.push(`${pk}.${attr}: ${what}`);
+      }
+      for (const hash of item?.d?.SS || [])
+        if (!/^[0-9a-f]{12}$/.test(hash))
+          offences.push(`${pk}: a looker entry is not a 12-character hash (${hash.slice(0, 24)})`);
+    }
+    if (!read) fail("a stored row could be read back to check its shape",
+      "no rows found at all - has the endpoint ever been reached?");
+    else if (!offences.length)
+      pass(`${read} stored row(s) hold nothing but counts and day-scoped hashes`);
+    else fail(`${read} stored row(s) hold nothing but counts and day-scoped hashes`,
+      offences.join("\n        "));
   }
 }
 

@@ -10,6 +10,8 @@ import { takeToken, takeDailyBudget } from "./ratelimit.mjs";
 import { Doc, SYSTEM, userPrompt, clauseFindings, CLAUSE_RETRY } from "./engine.mjs";
 import { readForClause } from "./reader.mjs";
 import { safeDetail } from "./safelog.mjs";
+import { siteFor, normalizePath } from "./look.mjs";
+import { recordLook } from "./lookstore.mjs";
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const lambda = new LambdaClient({});
@@ -314,6 +316,73 @@ export async function handler(event) {
   const method = event?.requestContext?.http?.method ?? "POST";
   const path = event?.rawPath || event?.requestContext?.http?.path || "";
   const ip = event?.requestContext?.http?.sourceIp || "unknown";
+  /* ---- the LOOKS counter: /look ----
+     House-wide, and the only route on this function that is not about the
+     engine. It answers 204 to everything, always, including the cases it
+     refuses to count: a counter that distinguishes "counted" from "rejected"
+     in its reply is a probe for discovering the allowlist, and there is no
+     error data here worth anyone harvesting.
+
+     It is deliberately ahead of the generic OPTIONS short-circuit, because
+     that one answers with the ENGINE's CORS allowlist. A beacon from
+     euclideanobjects.com must not be told that its origin is disallowed, and
+     the engine's own allowlist must not be widened to five sites to achieve
+     that - /run is kurultai's and stays that way.
+
+     No preflight is expected in practice: navigator.sendBeacon with no body
+     sends no content-type, which makes it a simple request. OPTIONS is
+     handled anyway, because a page that later switches to fetch() should not
+     silently stop counting. */
+  if (path.endsWith("/look")) {
+    const q = event?.queryStringParameters || {};
+    const h = event?.headers || {};
+    const site = siteFor(h.origin || h.Origin, q.s);
+    const L = (extra = {}) => ({
+      statusCode: 204,
+      /* Echo the origin only when it is one of ours. Omitting the header
+         entirely for a stranger is what keeps the refusal silent: there is no
+         header to read a verdict out of. */
+      headers: {
+        ...(site && (h.origin || h.Origin)
+          ? { "access-control-allow-origin": h.origin || h.Origin }
+          : {}),
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-max-age": "3600",
+        vary: "Origin",
+        ...extra,
+      },
+      body: "",
+    });
+
+    if (method === "OPTIONS") return L();
+    if (method !== "POST" && method !== "GET") return L();
+    if (!site) return L();
+
+    /* QA must not inflate the number she quotes. The harness, status.mjs and
+       render-sample all pass qa=1; the endpoint does everything except count. */
+    if (q.qa === "1" || h["x-kurultai-qa"] === "1") return L({ "x-look": "qa" });
+
+    try {
+      const b = await takeToken(ip, {
+        prefix: "look", perHour: CONFIG.lookPerIpPerHour, burst: CONFIG.lookPerIpBurst,
+      });
+      if (!b.ok) return L();
+    } catch (e) {
+      /* The limiter being down is not a reason to break a page's load. */
+      console.error("look_limiter_unavailable", e?.name);
+      return L();
+    }
+
+    try {
+      await recordLook({ site, path: normalizePath(q.p), ip });
+    } catch (e) {
+      /* Never throw towards a beacon. A lost look is a smaller problem than a
+         page that reports an error because a counter had a bad second. */
+      console.error("look_failed", e?.name);
+    }
+    return L();
+  }
+
   if (method === "OPTIONS") return J(204, {});
 
   /* ---- polling: no model call, so it never touches the daily spend cap ----

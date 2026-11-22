@@ -62,8 +62,51 @@ const live = aws(["lambda", "get-function-configuration", "--function-name", FN,
   "--query", "[LastUpdateStatus,State,LastModified]", "--output", "text"]).trim();
 console.log(`  deployed  ${MODEL}, cap ${CAP}/day  ${live ? "(" + live.replace(/\s+/g, " ") + ")" : ""}`);
 
-/* ---------- has anyone used it? ---------- */
+/* Both of the sections below are keyed by UTC day. */
 const day = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
+
+/* ---------- did anyone LOOK? ----------
+   status.mjs counted RUNS from the day it was written, which left "did
+   anyone look at it" invisible. This reads the LOOKS counter's own rows -
+   free, no model call, nothing against the daily cap.
+
+   Per page, today and yesterday, because one number with nothing to compare
+   it against answers nothing. Distinct is per-day by design: the hash that
+   recognises a repeat visit is salted with a key that rotates at midnight
+   UTC, so these two columns cannot be added together. */
+console.log("\nLOOKS");
+{
+  const t = day(0), y = day(1);
+  const row = (pk) => {
+    const out = aws(["dynamodb", "get-item", "--table-name", TABLE,
+      "--key", JSON.stringify({ pk: { S: pk } }), "--output", "json"]);
+    let it = {};
+    try { it = JSON.parse(out || "{}").Item || {}; } catch { it = {}; }
+    return { v: Number(it?.v?.N || 0), d: (it?.d?.SS || []).length, capped: it?.capped?.BOOL === true };
+  };
+
+  const site = "thekurultai";
+  console.log("  page                                    today      yesterday");
+  let anything = 0;
+  for (const p of pages) {
+    const a = row(`look#${site}#${p}#${t}`), b = row(`look#${site}#${p}#${y}`);
+    anything += a.v + b.v;
+    console.log(`  ${p.padEnd(38)}${String(a.v).padStart(5)} look${a.v === 1 ? " " : "s"}${String(b.v).padStart(7)} looks`);
+  }
+  const dayT = row(`lookday#${site}#${t}`), dayY = row(`lookday#${site}#${y}`);
+  console.log(`  ${"ALL PAGES".padEnd(38)}${String(dayT.v).padStart(5)} looks ${String(dayY.v).padStart(6)} looks`);
+  console.log(`  ${"distinct lookers (per day, not addable)".padEnd(38)}`
+    + `${String(dayT.d).padStart(5)}${dayT.capped ? "+" : " "}      ${String(dayY.d).padStart(6)}${dayY.capped ? "+" : ""}`);
+  if (!anything && !dayT.v && !dayY.v) {
+    console.log("  nothing counted in either day.");
+    /* Not automatically a fault: it is also what a quiet Tuesday looks like.
+       The harness is what can tell the difference, so it is named here. */
+    warn.push("no looks recorded today or yesterday - if that is a surprise, run: node api/qa/harness.mjs --looks");
+  }
+  console.log("  (the whole house, all five sites: node api/qa/traffic.mjs)");
+}
+
+/* ---------- has anyone used it? ---------- */
 console.log("\nUSE");
 for (let i = DAYS - 1; i >= 0; i--) {
   const d = day(i);

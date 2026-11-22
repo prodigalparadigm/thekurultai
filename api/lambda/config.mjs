@@ -65,6 +65,43 @@ export const CONFIG = {
   // Long enough to read and print, short enough that nothing accumulates.
   resultTtlSeconds: 2 * 3600,
 
+  // --- the LOOKS counter, house-wide ---
+  // One endpoint, one table, five sites. A site is recognised by the Origin
+  // its browser sends; anything not on this list gets a silent 204. Add a
+  // site by adding its origins here and putting the beacon on its pages -
+  // there is deliberately no per-site infrastructure to stand up.
+  //
+  // Receipts for these, checked 5 Nov 2026 against the live repos:
+  //   prodigalparadigm   comelyhunger/prodigalparadigm   (CNAME is the www form)
+  //   euclideanobjects   comelyhunger/euclideanobjects
+  //   rippertherecruiter prodigalparadigm/rippertherecruiter  (NOT comelyhunger)
+  //   flyer2fork         S3 + CloudFront, both .com and .org, both www forms
+  lookSites: {
+    thekurultai: ["https://thekurultai.com", "https://www.thekurultai.com"],
+    prodigalparadigm: ["https://prodigalparadigm.com", "https://www.prodigalparadigm.com"],
+    euclideanobjects: ["https://euclideanobjects.com", "https://www.euclideanobjects.com"],
+    rippertherecruiter: ["https://rippertherecruiter.com", "https://www.rippertherecruiter.com"],
+    flyer2fork: ["https://flyer2fork.com", "https://www.flyer2fork.com",
+                 "https://flyer2fork.org", "https://www.flyer2fork.org"],
+    /* The QA harness has to prove that counting actually COUNTS, which means
+       firing a look that is really counted. Doing that against a real site
+       would put harness traffic into a number she quotes out loud, so the
+       probe gets its own site with NO origins: it is unreachable from any
+       browser and only addressable as s=qa. Reports skip any site with an
+       empty origin list, so this one can never reach the TOTAL line. */
+    qa: [],
+  },
+  // Raw per-day rows delete themselves. The monthly rollup has no TTL, so the
+  // number she quotes outlives the rows it was computed from.
+  lookTtlDays: 90,
+  // A look costs no model tokens, so the bucket is roomy - but it is a bucket,
+  // because an open counter is still an open write path to her table.
+  lookPerIpPerHour: 300,
+  lookPerIpBurst: 60,
+  // A day's looker set lives in one item and an item is capped at 400KB. At
+  // this cap the row keeps counting views, stops adding lookers, and says so.
+  lookDistinctCap: 5000,
+
   // --- where things live ---
   ssmKeyParam: process.env.SSM_KEY_PARAM || "/kurultai/anthropic-api-key",
   tableName: process.env.LIMITS_TABLE || "KurultaiLimits",

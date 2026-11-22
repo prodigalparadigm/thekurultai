@@ -119,6 +119,47 @@ promises: every recommendation names the outcome it controls, no ceremonial
 process carries a tooling recommendation, and no ledger row is missing an owner
 or a date.
 
+## The LOOKS counter
+
+Added 5 Nov 2026. One route, `/look`, on this same function, serving the whole
+house: thekurultai.com, prodigalparadigm.com, euclideanobjects.com,
+rippertherecruiter.com and flyer2fork.com. There is deliberately no per-site
+infrastructure - one endpoint, one table, a site column.
+
+A page carries a one-line `navigator.sendBeacon` and nothing else: no cookies,
+no localStorage, no third-party script, nothing render-blocking, silent on any
+failure. The site is identified by the request's `Origin`, checked against
+`lookSites` in `lambda/config.mjs`; anything else gets a silent 204.
+
+What is stored, and nothing more:
+
+    look#<site>#<path>#<day>     views + the day's looker hashes   (90-day TTL)
+    lookday#<site>#<day>         views + the day's looker hashes   (90-day TTL)
+    lookmonth#<site>#<YYYY-MM>   views, and a distinct high-water  (NO TTL)
+
+Distinct lookers are counted by a salted hash of the address whose salt is
+**derived per UTC day**, so two days cannot be joined even by us. The honest
+consequence, which every report states out loud: distinct means
+distinct-per-day-per-site. Weekly or estate-wide uniques are not computable
+here, because computing them would mean keeping an identifier that outlives
+the day. The monthly rollup has no TTL so the quotable history outlives the
+rows it came from.
+
+Reading it:
+
+    node api/qa/traffic.mjs          the whole house, 30 days, with a TOTAL line
+    node api/qa/status.mjs           the Kurultai's own pages, today vs yesterday
+    node api/qa/harness.mjs --looks  does the beacon work, and can a row name anyone
+
+`--looks` fires its test looks at the `qa` site, which has no origins and is
+skipped by every report, so the harness can never inflate a number she quotes.
+
+GitHub repo views and clones are a **different population** - people reading
+the source on github.com, not readers of the sites - and GitHub publishes no
+API for Pages traffic at all. They live in their own report
+(`python3 ~/claude_system/admin_run/github_traffic.py`) and must never be
+added to the figures above.
+
 ## The slider poles are canon
 
 `canon/sliders.json` holds the four sliders with both poles in Kathleen's

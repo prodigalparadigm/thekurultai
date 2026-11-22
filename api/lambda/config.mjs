@@ -75,12 +75,14 @@ export const CONFIG = {
   //   prodigalparadigm   comelyhunger/prodigalparadigm   (CNAME is the www form)
   //   euclideanobjects   comelyhunger/euclideanobjects
   //   rippertherecruiter prodigalparadigm/rippertherecruiter  (NOT comelyhunger)
+  //   mastersori         prodigalparadigm/mastersori  (apex + www, DNS cut 20 Nov)
   //   flyer2fork         S3 + CloudFront, both .com and .org, both www forms
   lookSites: {
     thekurultai: ["https://thekurultai.com", "https://www.thekurultai.com"],
     prodigalparadigm: ["https://prodigalparadigm.com", "https://www.prodigalparadigm.com"],
     euclideanobjects: ["https://euclideanobjects.com", "https://www.euclideanobjects.com"],
     rippertherecruiter: ["https://rippertherecruiter.com", "https://www.rippertherecruiter.com"],
+    mastersori: ["https://mastersori.com", "https://www.mastersori.com"],
     flyer2fork: ["https://flyer2fork.com", "https://www.flyer2fork.com",
                  "https://flyer2fork.org", "https://www.flyer2fork.org"],
     /* The QA harness has to prove that counting actually COUNTS, which means

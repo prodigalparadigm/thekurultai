@@ -1103,6 +1103,7 @@ if (existsSync(samples)) {
     ["HTTPS://EUCLIDEANOBJECTS.COM", "euclideanobjects"],
     ["https://flyer2fork.org", "flyer2fork"],
     ["https://rippertherecruiter.com", "rippertherecruiter"],
+    ["https://mastersori.com", "mastersori"],
     ["https://thekurultai.com.evil.example", null],
     ["http://thekurultai.com", null],          // plain http is not one of ours
     ["", null],
@@ -1165,6 +1166,7 @@ if (existsSync(samples)) {
     prodigalparadigm: join(ROOT, "..", "..", "pp_site_f2f_20261028"),
     euclideanobjects: join(ROOT, "..", "..", "euclideanobjects"),
     rippertherecruiter: join(ROOT, "..", "..", "rippertherecruiter"),
+    mastersori: join(ROOT, "..", "..", "mastersori"),
   };
   /* A page git is told to ignore is a page that is deliberately NOT published
      - the Centene edition is held back until its gate clears. Failing on it
@@ -1214,6 +1216,7 @@ if (existsSync(samples)) {
     "Page looks are counted",       // prodigalparadigm, euclideanobjects
     "stores nothing but a count",   // thekurultai, in its own existing words
     "a page load is counted",       // rippertherecruiter, in its own voice
+    "Looks are counted here",       // mastersori, in the method's plain register
   ];
   for (const [site, dir] of Object.entries(SITE_DIRS)) {
     if (!existsSync(dir)) continue;
@@ -1278,6 +1281,7 @@ if (process.argv.includes("--looks")) {
       prodigalparadigm: join(ROOT, "..", "..", "pp_site_f2f_20261028"),
       euclideanobjects: join(ROOT, "..", "..", "euclideanobjects"),
       rippertherecruiter: join(ROOT, "..", "..", "rippertherecruiter"),
+    mastersori: join(ROOT, "..", "..", "mastersori"),
       flyer2fork: null,              // one page, served from S3 at /
     };
     for (const [site, dir] of Object.entries(SERVED)) {
